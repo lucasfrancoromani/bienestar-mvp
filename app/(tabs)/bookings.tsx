@@ -1,5 +1,5 @@
 // app/(tabs)/bookings.tsx
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Text, View } from 'react-native';
 import { cancelBooking, listMyBookings } from '../../lib/api';
@@ -14,6 +14,7 @@ function line(b: any) {
 }
 
 export default function MyBookings() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<any[]>([]);
 
@@ -31,6 +32,18 @@ export default function MyBookings() {
     catch (e: any) { Alert.alert('No se pudo cancelar', e.message); }
   };
 
+  const goReschedule = (item: any) => {
+    const serviceId = item.service_id ?? item.services?.id;
+    const proId = item.pro?.id;
+    if (!serviceId || !proId) {
+      return Alert.alert('Falta información', 'No se pudo determinar el servicio o el profesional.');
+    }
+    router.push({
+      pathname: '/slots',
+      params: { serviceId, proId, bookingId: item.id },
+    });
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff', padding: 16 }}>
       <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Mis reservas</Text>
@@ -42,42 +55,25 @@ export default function MyBookings() {
           data={items}
           keyExtractor={(b) => b.id}
           ListEmptyComponent={<Text>No tenés reservas aún.</Text>}
-          renderItem={({ item }) => {
-            const serviceId = item.service_id ?? item.services?.id; // ← requiere que la API traiga service_id o services.id
-            const proId = item.pro?.id;
+          renderItem={({ item }) => (
+            <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee' }}>
+              <Text>{line(item)}</Text>
 
-            return (
-              <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee' }}>
-                <Text>{line(item)}</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                {item.status === 'confirmed' && (
+                  <View style={{ borderRadius: 8, overflow: 'hidden' }}>
+                    <Button title="Cancelar" onPress={() => onCancel(item.id)} />
+                  </View>
+                )}
 
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                  {item.status === 'confirmed' && (
-                    <View style={{ borderRadius: 8, overflow: 'hidden' }}>
-                      <Button title="Cancelar" onPress={() => onCancel(item.id)} />
-                    </View>
-                  )}
-
-                  {(item.status === 'confirmed' || item.status === 'pending') && serviceId && proId && (
-                    <Link
-                      href={{
-                        pathname: '/slots',
-                        params: {
-                          serviceId,
-                          proId,
-                          bookingId: item.id,
-                        },
-                      }}
-                      asChild
-                    >
-                      <View style={{ borderRadius: 8, overflow: 'hidden' }}>
-                        <Button title="Reprogramar" onPress={() => {}} />
-                      </View>
-                    </Link>
-                  )}
-                </View>
+                {(item.status === 'confirmed' || item.status === 'pending') && (
+                  <View style={{ borderRadius: 8, overflow: 'hidden' }}>
+                    <Button title="Reprogramar" onPress={() => goReschedule(item)} />
+                  </View>
+                )}
               </View>
-            );
-          }}
+            </View>
+          )}
         />
       )}
     </View>
