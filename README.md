@@ -72,3 +72,5 @@ lib/
 - [ ] Webhook pago → marcar booking como `paid`
 - [ ] Reseñas post-servicio
 - [ ] Admin web mínimo (Next.js)
+
+- [x] Autenticación con Supabase implementada ✅
