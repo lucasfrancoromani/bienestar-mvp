@@ -1,3 +1,5 @@
+// app/(tabs)/bookings.tsx
+import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Text, View } from 'react-native';
 import { cancelBooking, listMyBookings } from '../../lib/api';
@@ -6,8 +8,8 @@ import { displayName } from '../../lib/display';
 function line(b: any) {
   const when = new Date(b.start_at).toLocaleString();
   const sname = b.services?.name || 'Servicio';
-  const proName = displayName(b.pro);      // 👈 ya no muestra id crudo
-  const cliName = displayName(b.client);   // 👈 idem
+  const proName = displayName(b.pro);
+  const cliName = displayName(b.client);
   return `${when} • ${sname} • Pro: ${proName} • Cliente: ${cliName} • ${b.status}`;
 }
 
@@ -17,7 +19,10 @@ export default function MyBookings() {
 
   const load = () => {
     setLoading(true);
-    listMyBookings().then(setItems).catch(e => Alert.alert('Error', e.message)).finally(()=>setLoading(false));
+    listMyBookings()
+      .then(setItems)
+      .catch(e => Alert.alert('Error', e.message))
+      .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
@@ -26,20 +31,55 @@ export default function MyBookings() {
     catch (e: any) { Alert.alert('No se pudo cancelar', e.message); }
   };
 
-  if (loading) return <ActivityIndicator />;
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff', padding: 16  }}>
+    <View style={{ flex: 1, backgroundColor: '#fff', padding: 16 }}>
       <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Mis reservas</Text>
-      <FlatList
-        data={items}
-        keyExtractor={(b) => b.id}
-        renderItem={({ item }) => (
-          <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee' }}>
-            <Text>{line(item)}</Text>
-            {item.status === 'confirmed' && <Button title="Cancelar" onPress={() => onCancel(item.id)} />}
-          </View>
-        )}
-      />
+
+      {loading && <ActivityIndicator />}
+
+      {!loading && (
+        <FlatList
+          data={items}
+          keyExtractor={(b) => b.id}
+          ListEmptyComponent={<Text>No tenés reservas aún.</Text>}
+          renderItem={({ item }) => {
+            const serviceId = item.service_id ?? item.services?.id; // ← requiere que la API traiga service_id o services.id
+            const proId = item.pro?.id;
+
+            return (
+              <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee' }}>
+                <Text>{line(item)}</Text>
+
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  {item.status === 'confirmed' && (
+                    <View style={{ borderRadius: 8, overflow: 'hidden' }}>
+                      <Button title="Cancelar" onPress={() => onCancel(item.id)} />
+                    </View>
+                  )}
+
+                  {(item.status === 'confirmed' || item.status === 'pending') && serviceId && proId && (
+                    <Link
+                      href={{
+                        pathname: '/slots',
+                        params: {
+                          serviceId,
+                          proId,
+                          bookingId: item.id,
+                        },
+                      }}
+                      asChild
+                    >
+                      <View style={{ borderRadius: 8, overflow: 'hidden' }}>
+                        <Button title="Reprogramar" onPress={() => {}} />
+                      </View>
+                    </Link>
+                  )}
+                </View>
+              </View>
+            );
+          }}
+        />
+      )}
     </View>
   );
 }

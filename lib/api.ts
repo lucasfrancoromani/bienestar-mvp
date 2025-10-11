@@ -50,11 +50,11 @@ export async function listMyBookings() {
   const { data, error } = await supabase
     .from('bookings')
     .select(`
-      id, start_at, end_at, status,
-      services(name, duration_min),
-      pro:pro_id (id, full_name, email, avatar_url),
-      client:client_id (id, full_name, email, avatar_url)
-    `)
+      id, start_at, end_at, status, service_id,
+      services:service_id ( id, name, duration_min ),
+      pro:pro_id ( id, full_name, email, avatar_url ),
+      client:client_id ( id, full_name, email, avatar_url )
+    `) // 👉 sin "name" en users; sólo "full_name"
     .or(`client_id.eq.${user.id},pro_id.eq.${user.id}`)
     .order('start_at', { ascending: false });
 
@@ -80,7 +80,6 @@ export async function listSlots(proId: string, serviceId: string, fromISO: strin
   return data as { slot_start: string; slot_end: string }[];
 }
 
-
 export async function createBooking(proId: string, serviceId: string, startISO: string) {
   const { data, error } = await supabase.rpc('create_booking', {
     _pro_id: proId,
@@ -102,7 +101,7 @@ export async function listPendingForPro() {
       id, start_at, end_at, status,
       services(name, duration_min),
       client:client_id (id, full_name, email, avatar_url)
-    `)
+    `) // 👉 sólo full_name
     .eq('pro_id', user.id)
     .eq('status', 'pending')
     .order('start_at', { ascending: true });
@@ -118,5 +117,16 @@ export async function acceptBooking(bookingId: string) {
 
 export async function rejectBooking(bookingId: string) {
   const { error } = await supabase.rpc('reject_booking', { _booking_id: bookingId });
+  if (error) throw error;
+}
+
+// === Reprogramar una reserva existente ===
+export async function rescheduleBooking(bookingId: string, newStartISO: string) {
+  // Normalizamos a ISO UTC (por las dudas)
+  const iso = new Date(newStartISO).toISOString();
+  const { error } = await supabase.rpc('reschedule_booking', {
+    _booking_id: bookingId,
+    _new_start_at: iso,
+  });
   if (error) throw error;
 }
