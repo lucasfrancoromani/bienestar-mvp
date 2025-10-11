@@ -1,7 +1,7 @@
 // app/(tabs)/bookings.tsx
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Button, FlatList, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Button, FlatList, RefreshControl, Text, View } from 'react-native';
 import { cancelBooking, listMyBookings } from '../../lib/api';
 import { displayName } from '../../lib/display';
 
@@ -16,16 +16,41 @@ function line(b: any) {
 export default function MyBookings() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<any[]>([]);
 
-  const load = () => {
-    setLoading(true);
-    listMyBookings()
-      .then(setItems)
-      .catch(e => Alert.alert('Error', e.message))
-      .finally(() => setLoading(false));
+  const load = async () => {
+    try {
+      setLoading(true);
+      const data = await listMyBookings();
+      setItems(data);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setLoading(false);
+    }
   };
+
   useEffect(() => { load(); }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Se ejecuta al volver a esta pantalla
+      load();
+    }, [])
+  );
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      const data = await listMyBookings();
+      setItems(data);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const onCancel = async (id: string) => {
     try { await cancelBooking(id); load(); }
@@ -38,10 +63,7 @@ export default function MyBookings() {
     if (!serviceId || !proId) {
       return Alert.alert('Falta información', 'No se pudo determinar el servicio o el profesional.');
     }
-    router.push({
-      pathname: '/slots',
-      params: { serviceId, proId, bookingId: item.id },
-    });
+    router.push({ pathname: '/slots', params: { serviceId, proId, bookingId: item.id } });
   };
 
   return (
@@ -55,6 +77,7 @@ export default function MyBookings() {
           data={items}
           keyExtractor={(b) => b.id}
           ListEmptyComponent={<Text>No tenés reservas aún.</Text>}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item }) => (
             <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee' }}>
               <Text>{line(item)}</Text>
@@ -65,7 +88,6 @@ export default function MyBookings() {
                     <Button title="Cancelar" onPress={() => onCancel(item.id)} />
                   </View>
                 )}
-
                 {(item.status === 'confirmed' || item.status === 'pending') && (
                   <View style={{ borderRadius: 8, overflow: 'hidden' }}>
                     <Button title="Reprogramar" onPress={() => goReschedule(item)} />
