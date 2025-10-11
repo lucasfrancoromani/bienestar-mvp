@@ -1,98 +1,102 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { isProUser } from '../../lib/authz';
+import { supabase } from '../../lib/supabase';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
-
-export default function HomeScreen() {
+function RoleBadge({ isPro }: { isPro: boolean }) {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
-
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={{
+      alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999,
+      backgroundColor: isPro ? '#16a34a20' : '#64748b20',
+      borderWidth: 1, borderColor: isPro ? '#16a34a55' : '#64748b55',
+    }}>
+      <Text style={{ fontSize: 12, fontWeight: '700', color: isPro ? '#166534' : '#334155' }}>
+        {isPro ? 'Rol: Profesional' : 'Rol: Cliente'}
+      </Text>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+export default function Home() {
+  const router = useRouter();
+  const [email, setEmail] = useState<string | null>(null);
+  const [amPro, setAmPro] = useState<boolean>(false);
+
+  async function refreshSessionAndRole(session = undefined as any) {
+    const userEmail = session?.user?.email ?? (await supabase.auth.getSession()).data.session?.user?.email ?? null;
+    setEmail(userEmail ?? null);
+    setAmPro(userEmail ? await isProUser() : false);
+  }
+
+  useEffect(() => {
+    // sesión inicial + rol
+    refreshSessionAndRole();
+
+    // escuchar cambios de auth
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      refreshSessionAndRole(session);
+    });
+    return () => { sub.subscription?.unsubscribe(); };
+  }, []);
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      // limpiar UI local y llevar a Home
+      setEmail(null);
+      setAmPro(false);
+      router.replace('/(tabs)');
+      Alert.alert('Sesión cerrada');
+    } catch (e: any) {
+      Alert.alert('Error al cerrar sesión', e.message ?? 'Intenta de nuevo.');
+    }
+  };
+
+  return (
+    <View style={{ padding: 16, gap: 12 }}>
+      <Text style={{ fontSize: 24, fontWeight: '700', marginBottom: 4 }}>Inicio</Text>
+
+      {email ? (
+        <>
+          <RoleBadge isPro={amPro} />
+          <Text style={{ color: '#666' }}>Sesión iniciada como: {email}</Text>
+
+          {amPro && (
+            <Link href="/(tabs)/(pro)/pro" asChild>
+              <TouchableOpacity style={{ padding: 16, borderRadius: 12, backgroundColor: '#111', marginTop: 8 }}>
+                <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>
+                  Ir al Panel Profesional
+                </Text>
+              </TouchableOpacity>
+            </Link>
+          )}
+
+          <TouchableOpacity onPress={signOut}
+            style={{ padding: 14, borderRadius: 12, backgroundColor: '#f5f5f5' }}>
+            <Text style={{ textAlign: 'center', fontWeight: '600' }}>Cerrar sesión</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <Link href="/(tabs)/auth-register" asChild>
+            <TouchableOpacity style={{ padding: 16, borderRadius: 12, backgroundColor: '#111' }}>
+              <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>
+                Crear cuenta
+              </Text>
+            </TouchableOpacity>
+          </Link>
+
+          <Link href="/(tabs)/auth-login" asChild>
+            <TouchableOpacity style={{ padding: 16, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd' }}>
+              <Text style={{ textAlign: 'center', fontWeight: '600' }}>
+                Iniciar sesión
+              </Text>
+            </TouchableOpacity>
+          </Link>
+        </>
+      )}
+    </View>
+  );
+}

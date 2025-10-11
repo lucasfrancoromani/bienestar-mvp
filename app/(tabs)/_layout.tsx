@@ -1,35 +1,17 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+export default function TabsLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+    <Tabs>
+      {/* Tabs visibles */}
+      <Tabs.Screen name="index"    options={{ title: 'Inicio' }} />
+      <Tabs.Screen name="explore"  options={{ title: 'Explorar' }} />
+      <Tabs.Screen name="bookings" options={{ title: 'Mis reservas' }} />
+
+      {/* Ocultos (no aparecen en la tab bar) */}
+      <Tabs.Screen name="(pro)"           options={{ href: null }} />
+      <Tabs.Screen name="auth-login"     options={{ title: 'Iniciar sesión', href: null }} />
+      <Tabs.Screen name="auth-register"  options={{ title: 'Crear cuenta',   href: null }} />
     </Tabs>
   );
 }

@@ -1,50 +1,74 @@
-# Welcome to your Expo app 👋
+# Marketplace de Bienestar — MVP
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App móvil (Expo + React Native) con backend Supabase para un marketplace de servicios a domicilio (wellness/estética). Incluye modo Cliente/Profesional, disponibilidad por franjas, reservas y panel Pro básico.
 
-## Get started
+## Stack
+- **Mobile:** Expo + React Native + expo-router
+- **Backend:** Supabase (Auth + Postgres + RLS)
+- **Pagos (roadmap):** Stripe Connect
+- **Otros:** TypeScript
 
-1. Install dependencies
+## Estructura (actual)
+```
+apps/mobile/              # (si luego migrás a monorepo)
+app/                      # rutas expo-router
+  (tabs)/
+    index.tsx             # Inicio + role badge
+    explore.tsx           # Explorar servicios
+    bookings.tsx          # Mis reservas
+    (pro)/                # Panel Profesional (stack protegido)
+      pro.tsx
+      pro-profile.tsx
+      pro-services.tsx
+      pro-service-new.tsx
+      pro-availability.tsx
+      pro-bookings.tsx
+  select-pro.tsx
+  slots.tsx
+lib/
+  supabase.ts
+  api.ts
+  authz.ts
+  display.ts
+```
+> Nota: los nombres reales pueden variar según tu carpeta actual; esta guía apunta a la estructura funcional.
 
+## Puesta en marcha (local)
+1. **Instalar deps**
    ```bash
-   npm install
+   pnpm i # o npm/yarn
    ```
-
-2. Start the app
-
+2. **Variables de entorno**
+   - Copiá `.env.example` a `.env` y completá claves.
+3. **Supabase**
+   - Si usás Supabase en la nube: configurá `SUPABASE_URL` y `SUPABASE_ANON_KEY`.
+   - (Opcional local) `supabase db push && supabase db seed`
+4. **Ejecutar app**
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+## Scripts sugeridos (package.json)
+```json
+{
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "lint": "eslint . --ext .ts,.tsx",
+    "db:push": "supabase db push",
+    "db:seed": "supabase db reset && supabase db seed"
+  }
+}
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Seguridad
+- **Nunca** commitees `.env` ni la **Service Role Key** de Supabase. La **Anon key** sí puede ir en el cliente.
+- Revisa RLS antes de publicar.
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Roadmap breve
+- [ ] Endpoint de slots + bloqueo en pago
+- [ ] Stripe Connect (test)
+- [ ] Webhook pago → marcar booking como `paid`
+- [ ] Reseñas post-servicio
+- [ ] Admin web mínimo (Next.js)

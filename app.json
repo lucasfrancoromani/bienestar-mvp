@@ -26,7 +26,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
+      "expo-router",       
       [
         "expo-splash-screen",
         {
@@ -38,11 +38,28 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Necesitamos acceder a tus fotos para subir tu avatar.",
+          "cameraPermission": "Necesitamos usar la cámara para tomar tu foto de perfil."
+        }
       ]
     ],
+    "ios": {
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Necesitamos acceder a tus fotos para subir tu avatar.",
+        "NSCameraUsageDescription": "Necesitamos usar la cámara para tomar tu foto de perfil."
+      }
+    },
+    "android": {
+      "permissions": ["READ_MEDIA_IMAGES"]
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     }
   }
 }
+
