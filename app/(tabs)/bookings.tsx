@@ -5,7 +5,17 @@ import { ActivityIndicator, Alert, Button, FlatList, RefreshControl, Text, View 
 import { cancelBooking, listMyBookings } from '../../lib/api';
 import { displayName } from '../../lib/display';
 
-function line(b: any) {
+type Booking = {
+  id: string;
+  start_at: string;
+  status: 'pending'|'confirmed'|'canceled'|'completed';
+  services?: { id: string; name: string; duration_min: number; reschedule_window_hours?: number };
+  service_id?: string;
+  pro?: { id: string; full_name?: string };
+  client?: { id: string; full_name?: string };
+};
+
+function line(b: Booking) {
   const when = new Date(b.start_at).toLocaleString();
   const sname = b.services?.name || 'Servicio';
   const proName = displayName(b.pro);
@@ -13,17 +23,26 @@ function line(b: any) {
   return `${when} • ${sname} • Pro: ${proName} • Cliente: ${cliName} • ${b.status}`;
 }
 
+// regla: ¿se puede reprogramar según la ventana del servicio?
+function canReschedule(b: Booking) {
+  if (!(b.status === 'pending' || b.status === 'confirmed')) return false;
+  const hours = Math.max(0, Number(b.services?.reschedule_window_hours ?? 24));
+  const now = Date.now();
+  const start = new Date(b.start_at).getTime();
+  return start - now > hours * 3600_000;
+}
+
 export default function MyBookings() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<Booking[]>([]);
 
   const load = async () => {
     try {
       setLoading(true);
       const data = await listMyBookings();
-      setItems(data);
+      setItems(data as any);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -32,19 +51,13 @@ export default function MyBookings() {
   };
 
   useEffect(() => { load(); }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      // Se ejecuta al volver a esta pantalla
-      load();
-    }, [])
-  );
+  useFocusEffect(useCallback(() => { load(); }, []));
 
   const onRefresh = async () => {
     try {
       setRefreshing(true);
       const data = await listMyBookings();
-      setItems(data);
+      setItems(data as any);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -57,11 +70,15 @@ export default function MyBookings() {
     catch (e: any) { Alert.alert('No se pudo cancelar', e.message); }
   };
 
-  const goReschedule = (item: any) => {
+  const goReschedule = (item: Booking) => {
     const serviceId = item.service_id ?? item.services?.id;
     const proId = item.pro?.id;
     if (!serviceId || !proId) {
       return Alert.alert('Falta información', 'No se pudo determinar el servicio o el profesional.');
+    }
+    if (!canReschedule(item)) {
+      const hrs = item.services?.reschedule_window_hours ?? 24;
+      return Alert.alert('No disponible', `Este turno ya no se puede reprogramar (ventana: ${hrs} h).`);
     }
     router.push({ pathname: '/slots', params: { serviceId, proId, bookingId: item.id } });
   };
@@ -88,12 +105,18 @@ export default function MyBookings() {
                     <Button title="Cancelar" onPress={() => onCancel(item.id)} />
                   </View>
                 )}
-                {(item.status === 'confirmed' || item.status === 'pending') && (
+                {canReschedule(item) && (
                   <View style={{ borderRadius: 8, overflow: 'hidden' }}>
                     <Button title="Reprogramar" onPress={() => goReschedule(item)} />
                   </View>
                 )}
               </View>
+
+              {!canReschedule(item) && (item.status === 'pending' || item.status === 'confirmed') && (
+                <Text style={{ color: '#999', marginTop: 6 }}>
+                  Reprogramación no disponible.
+                </Text>
+              )}
             </View>
           )}
         />

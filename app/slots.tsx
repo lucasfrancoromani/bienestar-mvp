@@ -126,4 +126,6 @@ export default function SlotsScreen() {
       />
     </View>
   );
+
+
 }
