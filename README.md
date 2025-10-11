@@ -75,3 +75,4 @@ lib/
 
 - [x] Autenticación con Supabase implementada ✅
 - [x] Panel Profesional completado ✅
+- [x] Sistema de reservas (slots, creación, cancelación) ✅
