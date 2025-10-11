@@ -2,16 +2,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform,
+  ScrollView, Text, TextInput, TouchableOpacity
 } from 'react-native';
 import { supabase } from '../../../../lib/supabase';
 
@@ -24,6 +16,7 @@ type Service = {
   category?: string;
   is_active: boolean;
   professional_id: string;
+  reschedule_window_hours?: number;
 };
 
 export default function ProServiceEdit() {
@@ -38,8 +31,8 @@ export default function ProServiceEdit() {
   const [price, setPrice] = useState('');      // UI en moneda (ej: "12.50")
   const [duration, setDuration] = useState(''); // minutos
   const [category, setCategory] = useState('');
+  const [reschedHours, setReschedHours] = useState('24');
 
-  // Cargar service
   useEffect(() => {
     (async () => {
       const serviceId = id ? String(id) : '';
@@ -67,6 +60,7 @@ export default function ProServiceEdit() {
       setPrice(((data.price_cents || 0) / 100).toString());
       setDuration(String(data.duration_min || 60));
       setCategory(data.category || '');
+      setReschedHours(String(data.reschedule_window_hours ?? 24));
       setLoading(false);
     })();
   }, [id]);
@@ -82,6 +76,7 @@ export default function ProServiceEdit() {
     if (!serviceId) return;
     const price_cents = Math.max(1, Math.round((Number(price) || 0) * 100));
     const duration_min = Math.max(10, Number(duration) || 30);
+    const reschedule_window_hours = Math.max(0, Number(reschedHours) || 24);
 
     setSaving(true);
     try {
@@ -93,117 +88,46 @@ export default function ProServiceEdit() {
           price_cents,
           duration_min,
           category,
-        })
+          reschedule_window_hours,
+        } as any)
         .eq('id', serviceId);
 
       if (error) throw error;
       Alert.alert('Guardado', 'Cambios aplicados.');
       safeGoBack();
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo guardar.');
+      Alert.alert('Error', e.message ?? 'No se pudo guardar');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-        <Text style={{ marginTop: 8 }}>Cargando…</Text>
-      </View>
-    );
-  }
+  if (loading) return <ActivityIndicator style={{ marginTop: 24 }} />;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.select({ ios: 88, android: 0 })}
-    >
-      <ScrollView
-        contentContainerStyle={{ padding: 16, gap: 12 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={{ fontSize: 18, fontWeight: '600' }}>Nombre</Text>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="Ej. Masaje Descontracturante"
-          style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }}
-        />
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
+        <Text>Nombre</Text>
+        <TextInput value={name} onChangeText={setName} style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
 
-        <Text style={{ fontSize: 18, fontWeight: '600' }}>Descripción</Text>
-        <TextInput
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Detalles del servicio"
-          multiline
-          style={{
-            backgroundColor: '#fff',
-            padding: 12,
-            borderRadius: 12,
-            minHeight: 90,
-            textAlignVertical: 'top',
-          }}
-        />
+        <Text>Descripción</Text>
+        <TextInput value={description} onChangeText={setDescription} multiline style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12, minHeight: 80 }} />
 
-        <Text style={{ fontSize: 18, fontWeight: '600' }}>Precio (USD)</Text>
-        <TextInput
-          value={price}
-          onChangeText={setPrice}
-          keyboardType="decimal-pad"
-          placeholder="Ej. 25.00"
-          style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }}
-        />
+        <Text>Precio (USD)</Text>
+        <TextInput value={price} onChangeText={setPrice} keyboardType="decimal-pad" style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
 
-        <Text style={{ fontSize: 18, fontWeight: '600' }}>Duración (min)</Text>
-        <TextInput
-          value={duration}
-          onChangeText={setDuration}
-          keyboardType="number-pad"
-          placeholder="Ej. 60"
-          style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }}
-        />
+        <Text>Duración (min)</Text>
+        <TextInput value={duration} onChangeText={setDuration} keyboardType="number-pad" style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
 
-        <Text style={{ fontSize: 18, fontWeight: '600' }}>Categoría</Text>
-        <TextInput
-          value={category}
-          onChangeText={setCategory}
-          placeholder="Ej. Masajes / Facial / Uñas…"
-          style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }}
-        />
+        <Text>Categoría</Text>
+        <TextInput value={category} onChangeText={setCategory} style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
 
-        <View style={{ height: 8 }} />
+        <Text>Anticipación para reprogramar (horas)</Text>
+        <TextInput value={reschedHours} onChangeText={setReschedHours} keyboardType="number-pad" style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
 
-        <TouchableOpacity
-          onPress={save}
-          disabled={saving}
-          style={{
-            padding: 14,
-            borderRadius: 12,
-            backgroundColor: '#111',
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: '#fff', fontWeight: '600' }}>
-            {saving ? 'Guardando…' : 'Guardar'}
-          </Text>
+        <TouchableOpacity onPress={save} disabled={saving} style={{ padding: 14, borderRadius: 12, backgroundColor: '#111', alignItems: 'center' }}>
+          <Text style={{ color: '#fff', fontWeight: '600' }}>{saving ? 'Guardando…' : 'Guardar'}</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={safeGoBack}
-          style={{
-            padding: 12,
-            borderRadius: 12,
-            backgroundColor: '#f5f5f5',
-            alignItems: 'center',
-          }}
-        >
-          <Text>Cancelar</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 24 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

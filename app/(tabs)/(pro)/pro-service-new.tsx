@@ -10,11 +10,13 @@ export default function ProServiceNew() {
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('');
   const [category, setCategory] = useState('Masajes');
+  const [reschedHours, setReschedHours] = useState('24');
   const [loading, setLoading] = useState(false);
 
   const save = async () => {
     const price_cents = Math.max(1, Math.round((Number(price) || 0) * 100));
     const duration_min = Math.max(10, Number(duration) || 30);
+    const reschedule_window_hours = Math.max(0, Number(reschedHours) || 24);
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -24,7 +26,8 @@ export default function ProServiceNew() {
         name, description,
         price_cents, duration_min,
         category, is_active: true,
-      });
+        reschedule_window_hours,
+      } as any);
       if (error) throw error;
       r.back();
     } catch (e: any) {
@@ -49,7 +52,10 @@ export default function ProServiceNew() {
       <TextInput value={duration} onChangeText={setDuration} keyboardType="number-pad" style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
 
       <Text>Categoría</Text>
-      <TextInput value={category} onChangeText={setCategory} placeholder="Masajes / Facial / Uñas..." style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
+      <TextInput value={category} onChangeText={setCategory} placeholder="Masajes / Facial / Uñas." style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
+
+      <Text>Anticipación para reprogramar (horas)</Text>
+      <TextInput value={reschedHours} onChangeText={setReschedHours} keyboardType="number-pad" style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
 
       <TouchableOpacity onPress={save} disabled={loading} style={{ padding: 14, borderRadius: 12, backgroundColor: '#111', alignItems: 'center' }}>
         <Text style={{ color: '#fff', fontWeight: '600' }}>{loading ? 'Creando…' : 'Crear'}</Text>
