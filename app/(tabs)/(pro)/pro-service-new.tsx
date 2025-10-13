@@ -11,12 +11,14 @@ export default function ProServiceNew() {
   const [duration, setDuration] = useState('');
   const [category, setCategory] = useState('Masajes');
   const [reschedHours, setReschedHours] = useState('24');
+  const [cancelHours, setCancelHours] = useState('24'); // 👈 nuevo
   const [loading, setLoading] = useState(false);
 
   const save = async () => {
     const price_cents = Math.max(1, Math.round((Number(price) || 0) * 100));
     const duration_min = Math.max(10, Number(duration) || 30);
     const reschedule_window_hours = Math.max(0, Number(reschedHours) || 24);
+    const cancel_window_hours = Math.max(0, Number(cancelHours) || 24); // 👈 nuevo
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -27,6 +29,7 @@ export default function ProServiceNew() {
         price_cents, duration_min,
         category, is_active: true,
         reschedule_window_hours,
+        cancel_window_hours, // 👈 nuevo
       } as any);
       if (error) throw error;
       r.back();
@@ -56,6 +59,10 @@ export default function ProServiceNew() {
 
       <Text>Anticipación para reprogramar (horas)</Text>
       <TextInput value={reschedHours} onChangeText={setReschedHours} keyboardType="number-pad" style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
+
+      {/* 👇 Nuevo campo */}
+      <Text>Anticipación para cancelar (horas)</Text>
+      <TextInput value={cancelHours} onChangeText={setCancelHours} keyboardType="number-pad" style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12 }} />
 
       <TouchableOpacity onPress={save} disabled={loading} style={{ padding: 14, borderRadius: 12, backgroundColor: '#111', alignItems: 'center' }}>
         <Text style={{ color: '#fff', fontWeight: '600' }}>{loading ? 'Creando…' : 'Crear'}</Text>
