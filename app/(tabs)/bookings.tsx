@@ -9,7 +9,13 @@ type Booking = {
   id: string;
   start_at: string;
   status: 'pending'|'confirmed'|'canceled'|'completed';
-  services?: { id: string; name: string; duration_min: number; reschedule_window_hours?: number };
+  services?: {
+    id: string;
+    name: string;
+    duration_min: number;
+    reschedule_window_hours?: number;
+    cancel_window_hours?: number; // 👈 nuevo
+  };
   service_id?: string;
   pro?: { id: string; full_name?: string };
   client?: { id: string; full_name?: string };
@@ -27,6 +33,15 @@ function line(b: Booking) {
 function canReschedule(b: Booking) {
   if (!(b.status === 'pending' || b.status === 'confirmed')) return false;
   const hours = Math.max(0, Number(b.services?.reschedule_window_hours ?? 24));
+  const now = Date.now();
+  const start = new Date(b.start_at).getTime();
+  return start - now > hours * 3600_000;
+}
+
+// regla: ¿se puede cancelar según la ventana del servicio?
+function canCancel(b: Booking) {
+  if (!(b.status === 'pending' || b.status === 'confirmed')) return false;
+  const hours = Math.max(0, Number(b.services?.cancel_window_hours ?? 24));
   const now = Date.now();
   const start = new Date(b.start_at).getTime();
   return start - now > hours * 3600_000;
@@ -67,7 +82,15 @@ export default function MyBookings() {
 
   const onCancel = async (id: string) => {
     try { await cancelBooking(id); load(); }
-    catch (e: any) { Alert.alert('No se pudo cancelar', e.message); }
+    catch (e: any) { 
+      // Mensajes más claros si vienen del RPC
+      const msg = String(e.message || '').toLowerCase();
+      if (msg.includes('outside_cancel_window')) {
+        Alert.alert('No disponible', 'Este turno ya no se puede cancelar por la ventana configurada.');
+      } else {
+        Alert.alert('No se pudo cancelar', e.message);
+      }
+    }
   };
 
   const goReschedule = (item: Booking) => {
@@ -100,7 +123,7 @@ export default function MyBookings() {
               <Text>{line(item)}</Text>
 
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                {item.status === 'confirmed' && (
+                {canCancel(item) && (
                   <View style={{ borderRadius: 8, overflow: 'hidden' }}>
                     <Button title="Cancelar" onPress={() => onCancel(item.id)} />
                   </View>
@@ -112,9 +135,15 @@ export default function MyBookings() {
                 )}
               </View>
 
-              {!canReschedule(item) && (item.status === 'pending' || item.status === 'confirmed') && (
+              {/* Mensajes aclaratorios */}
+              {!(canCancel(item)) && (item.status === 'pending' || item.status === 'confirmed') && (
                 <Text style={{ color: '#999', marginTop: 6 }}>
-                  Reprogramación no disponible.
+                  Cancelación no disponible por ventana.
+                </Text>
+              )}
+              {!(canReschedule(item)) && (item.status === 'pending' || item.status === 'confirmed') && (
+                <Text style={{ color: '#999', marginTop: 2 }}>
+                  Reprogramación no disponible por ventana.
                 </Text>
               )}
             </View>

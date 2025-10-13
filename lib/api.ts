@@ -42,7 +42,7 @@ export async function listProsForService(serviceId: string) {
 }
 
 
-// --- Mis reservas (cliente o pro) con ventana de reprogramación del servicio ---
+// --- Mis reservas (cliente o pro) con ventanas configurables ---
 export async function listMyBookings() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No session');
@@ -51,7 +51,11 @@ export async function listMyBookings() {
     .from('bookings')
     .select(`
       id, start_at, end_at, status, service_id,
-      services:service_id ( id, name, duration_min, reschedule_window_hours ),
+      services:service_id (
+        id, name, duration_min,
+        reschedule_window_hours,
+        cancel_window_hours
+      ),
       pro:pro_id ( id, full_name, email, avatar_url ),
       client:client_id ( id, full_name, email, avatar_url )
     `)
