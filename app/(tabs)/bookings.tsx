@@ -64,6 +64,7 @@ function canCancel(b: Booking) {
   return start - now > hours * 3600_000;
 }
 
+
 export default function MyBookings() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -214,6 +215,15 @@ const fg =
                   </View>
                 )}
               </View>
+
+              {(item.status === 'pending' || item.status === 'confirmed') && (
+  <View style={{ borderRadius: 8, overflow: 'hidden', marginLeft: 8 }}>
+    <Button
+      title="Pagar"
+      onPress={() => router.push(`/ (tabs)/checkout/${item.id}`.replace(' ', ''))}
+    />
+  </View>
+)}
 
               {/* Mensajes aclaratorios */}
               {!(canCancel(item)) && (item.status === 'pending' || item.status === 'confirmed') && (
