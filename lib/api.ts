@@ -44,26 +44,29 @@ export async function listProsForService(serviceId: string) {
 
 // --- Mis reservas (cliente o pro) con ventanas configurables ---
 export async function listMyBookings() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('No session');
+  const { data: { session } } = await supabase.auth.getSession();
+  const uid = session?.user?.id;
+  if (!uid) throw new Error('No hay sesión');
 
   const { data, error } = await supabase
     .from('bookings')
     .select(`
-      id, start_at, end_at, status, service_id,
+      id,
+      start_at,
+      status,
+      total_cents,
+      service_id,
       services:service_id (
-        id, name, duration_min,
-        reschedule_window_hours,
-        cancel_window_hours
+        id, name, duration_min, reschedule_window_hours, cancel_window_hours
       ),
-      pro:pro_id ( id, full_name, email, avatar_url ),
-      client:client_id ( id, full_name, email, avatar_url )
+      pro:pro_id ( id, full_name ),
+      client:client_id ( id, full_name )
     `)
-    .or(`client_id.eq.${user.id},pro_id.eq.${user.id}`)
+    .eq('client_id', uid)                // 👈 clave: SOLO reservas del cliente actual
     .order('start_at', { ascending: false });
 
   if (error) throw error;
-  return data!;
+  return data ?? [];
 }
 
 export async function cancelBooking(bookingId: string) {

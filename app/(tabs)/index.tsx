@@ -99,24 +99,7 @@ export default function Home() {
             </Link>
           )}
 
-          {/* 👉 Botón visible SOLO para clientes (no-Pro) */}
-          {!amPro && (
-            <Link href="/(tabs)/pago-test" asChild>
-              <TouchableOpacity
-                style={{
-                  padding: 16,
-                  borderRadius: 12,
-                  backgroundColor: '#10b981',
-                }}
-              >
-                <Text
-                  style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}
-                >
-                  Ir a Pago Test (Cliente)
-                </Text>
-              </TouchableOpacity>
-            </Link>
-          )}
+          
 
           <TouchableOpacity
             onPress={signOut}
