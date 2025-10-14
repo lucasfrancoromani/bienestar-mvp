@@ -134,3 +134,38 @@ export async function rescheduleBooking(bookingId: string, newStartISO: string) 
   });
   if (error) throw error;
 }
+
+// === Stripe Connect (Pro) ===
+export async function createProStripeAccount(proUserId: string, email?: string) {
+  const { data, error } = await supabase.functions.invoke('pro-stripe-account', {
+    body: { pro_user_id: proUserId, email },
+  });
+  if (error) throw error;
+  return data as { account_id: string; already_exists: boolean };
+}
+
+export async function getProOnboardingLink(proUserId: string) {
+  const { data, error } = await supabase.functions.invoke('pro-stripe-onboarding', {
+    body: { pro_user_id: proUserId },
+  });
+  if (error) throw error;
+  return data as { url: string };
+}
+
+export async function getProStripeStatus(proUserId: string) {
+  const { data, error } = await supabase.functions.invoke('pro-stripe-status', {
+    body: { pro_user_id: proUserId },
+  });
+  if (error) throw error;
+  return data as {
+    status: {
+      account_id: string;
+      charges_enabled: boolean;
+      payouts_enabled: boolean;
+      details_submitted: boolean;
+      disabled_reason: string | null;
+      outstanding_requirements: string[];
+    };
+  };
+}
+
