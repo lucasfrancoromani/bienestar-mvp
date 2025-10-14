@@ -164,18 +164,7 @@ export default function ProFinanzasScreen() {
             </Text>
           )}
         </TouchableOpacity>
-
-        {/* 👉 Botón para ir a la pantalla de pago de prueba */}
-        <Link href="/pago-test" asChild>
-          <TouchableOpacity
-            style={{ padding: 12, backgroundColor: '#10b981', borderRadius: 8 }}
-          >
-            <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>
-              Ir a Pago Test
-            </Text>
-          </TouchableOpacity>
-        </Link>
-
+        
         <Text style={{ fontSize: 12, color: '#777' }}>
           Tip: cambiá las URLs de retorno en ONBOARDING_RETURN_URL / ONBOARDING_REFRESH_URL (Secrets de Supabase).
         </Text>

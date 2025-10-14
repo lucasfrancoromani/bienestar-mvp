@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     try {
       intent = await stripe.paymentIntents.create({
         amount,
-        currency: "usd", // ajustá si cobrás en otra moneda
+        currency: "eur", 
         automatic_payment_methods: { enabled: true },
         application_fee_amount: applicationFeeCents,
         transfer_data: { destination },
