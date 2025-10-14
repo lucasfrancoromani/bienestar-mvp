@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
-import { supabase } from '../../lib/supabase';
+import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase'; // ajustá si tu ruta difiere
 
-// ⚠️ CAMBIÁ ESTO POR UN BOOKING REAL DEL CLIENTE
 const BOOKING_ID_DE_PRUEBA = '1fff294b-7020-4401-bac8-9a0ccce63f5f';
 
 async function createPaymentIntent(bookingId: string) {
@@ -17,6 +17,7 @@ async function createPaymentIntent(bookingId: string) {
 function PagoTestInner() {
   const [loading, setLoading] = useState(false);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const router = useRouter();
 
   const onPagar = useCallback(async () => {
     try {
@@ -41,14 +42,16 @@ function PagoTestInner() {
         return;
       }
 
+      // Éxito: volvemos a Mis reservas para que el usuario vea el estado actualizado
       Alert.alert('Éxito', 'Pago realizado correctamente');
+      router.replace('/(tabs)/bookings'); // ← navega a "Mis reservas"
     } catch (e: any) {
       console.error(e);
       Alert.alert('Error', e?.message ?? 'No se pudo procesar el pago');
     } finally {
       setLoading(false);
     }
-  }, [initPaymentSheet, presentPaymentSheet]);
+  }, [initPaymentSheet, presentPaymentSheet, router]);
 
   return (
     <View style={{ flex: 1, padding: 16, justifyContent: 'center', gap: 16 }}>
@@ -70,7 +73,7 @@ function PagoTestInner() {
 export default function PagoTestScreen() {
   return (
     <StripeProvider
-      publishableKey="pk_test_51SHbDqLMHBIjOOWfWaKUderaEYiBhy3bYSxBwanuXMYBfRrWWw82rND8YSoTF3QWiViN4532fIF9mme55nKUMLch00C9vpTY0s"   // ← tu PK de Stripe (TEST)
+      publishableKey="pk_test_xxx"   // tu PK (TEST)
       merchantIdentifier="com.bienestar.app"
       urlScheme="bienestar"
     >
