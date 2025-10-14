@@ -1,12 +1,14 @@
-// app/(tabs)/(client)/checkout.tsx (ejemplo completo y mínimo)
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useStripe } from '@stripe/stripe-react-native';
-// ajustá la ruta a tu supabase client o fetch
+import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
+// ⛳️ ajustá la ruta si tu supabase client está en otro lado
 import { supabase } from '../lib/supabase';
 
+// 🔧 CAMBIÁ ESTO POR TU BOOKING REAL (id de la reserva que ya creaste)
+const BOOKING_ID_DE_PRUEBA = '1fff294b-7020-4401-bac8-9a0ccce63f5f';
+
+// Llama a la Edge Function y devuelve el client_secret
 async function createPaymentIntent(bookingId: string) {
-  // llama a la Edge Function y devuelve client_secret
   const { data, error } = await supabase.functions.invoke('payments-intent', {
     body: { booking_id: bookingId },
   });
@@ -14,24 +16,21 @@ async function createPaymentIntent(bookingId: string) {
   return data as { client_secret: string; amount: number; application_fee_cents: number };
 }
 
-export default function CheckoutScreen() {
+function PagoTestInner() {
   const [loading, setLoading] = useState(false);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-
-  // ⚠️ Traé este id desde el flujo real (reserva creada)
-  const bookingId = '1fff294b-7020-4401-bac8-9a0ccce63f5f';
 
   const onPagar = useCallback(async () => {
     try {
       setLoading(true);
 
-      // 1) Pedimos el client_secret al backend (ya hace el split al Pro)
-      const { client_secret } = await createPaymentIntent(bookingId);
+      // 1) Traer client_secret (el split al Pro ya lo hace la Function)
+      const { client_secret } = await createPaymentIntent(BOOKING_ID_DE_PRUEBA);
 
-      // 2) Inicializamos PaymentSheet
+      // 2) Inicializar PaymentSheet
       const init = await initPaymentSheet({
         paymentIntentClientSecret: client_secret,
-        merchantDisplayName: 'Bienestar', // lo que ve el usuario
+        merchantDisplayName: 'Bienestar',
         allowsDelayedPaymentMethods: false,
       });
       if (init.error) {
@@ -40,7 +39,7 @@ export default function CheckoutScreen() {
         return;
       }
 
-      // 3) Presentamos PaymentSheet
+      // 3) Presentar PaymentSheet
       const present = await presentPaymentSheet();
       if (present.error) {
         Alert.alert('Pago cancelado', present.error.message ?? 'El usuario canceló o falló el pago');
@@ -50,25 +49,49 @@ export default function CheckoutScreen() {
 
       // 4) Éxito
       Alert.alert('Éxito', 'Pago realizado correctamente');
-      // (Opcional) refrescar reservas o navegar
     } catch (e: any) {
       console.error(e);
       Alert.alert('Error', e?.message ?? 'No se pudo procesar el pago');
     } finally {
       setLoading(false);
     }
-  }, [bookingId, initPaymentSheet, presentPaymentSheet]);
+  }, [initPaymentSheet, presentPaymentSheet]);
 
   return (
     <View style={{ flex: 1, padding: 16, justifyContent: 'center', gap: 16 }}>
-      <Text style={{ fontSize: 22, fontWeight: '700' }}>Checkout</Text>
+      <Text style={{ fontSize: 24, fontWeight: '700', marginBottom: 8 }}>Pago de prueba</Text>
+      <Text style={{ color: '#555', marginBottom: 16 }}>
+        Booking: {BOOKING_ID_DE_PRUEBA}
+      </Text>
+
       <TouchableOpacity
         onPress={onPagar}
         disabled={loading}
-        style={{ backgroundColor: '#111827', padding: 16, borderRadius: 12, opacity: loading ? 0.7 : 1 }}
+        style={{
+          backgroundColor: '#111827',
+          padding: 16,
+          borderRadius: 12,
+          opacity: loading ? 0.7 : 1,
+        }}
       >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>Pagar</Text>}
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>Pagar</Text>
+        )}
       </TouchableOpacity>
     </View>
+  );
+}
+
+export default function PagoTestScreen() {
+  return (
+    <StripeProvider
+      publishableKey="pk_test_51SHbDqLMHBIjOOWfWaKUderaEYiBhy3bYSxBwanuXMYBfRrWWw82rND8YSoTF3QWiViN4532fIF9mme55nKUMLch00C9vpTY0s" // ⛳️ PONÉ TU PUBLISHABLE KEY (TEST)
+      merchantIdentifier="com.bienestar.app" // iOS (puede quedar así)
+      urlScheme="bienestar" // opcional, para deep links futuros
+    >
+      <PagoTestInner />
+    </StripeProvider>
   );
 }

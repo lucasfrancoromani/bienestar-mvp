@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Linking, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Link } from 'expo-router';
 
 // ⛳️ AJUSTAR ESTAS DOS RUTAS SEGÚN TU PROYECTO
 import { supabase } from '../../../lib/supabase';
@@ -23,7 +23,6 @@ export default function ProFinanzasScreen() {
       setUserId(uid);
       setEmail(data.user?.email ?? undefined);
 
-      // Traer info del Pro y estado de Stripe
       if (uid) {
         const { data: pro } = await supabase
           .from('professionals')
@@ -46,15 +45,12 @@ export default function ProFinanzasScreen() {
                 : '')
             );
           } catch {
-            // si falla status, al menos mostramos el account id
             setStatusText(`Conectado: ${pro.stripe_account_id}`);
           }
         }
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const onConectarStripe = useCallback(async () => {
@@ -85,11 +81,8 @@ export default function ProFinanzasScreen() {
     try {
       const { url } = await getProOnboardingLink(userId);
       const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('Onboarding', 'No se pudo abrir el enlace de onboarding.');
-      }
+      if (supported) await Linking.openURL(url);
+      else Alert.alert('Onboarding', 'No se pudo abrir el enlace de onboarding.');
     } catch (e: any) {
       console.error(e);
       Alert.alert('Error', e?.message ?? 'No se pudo obtener el enlace de onboarding');
@@ -171,7 +164,7 @@ export default function ProFinanzasScreen() {
             </Text>
           )}
         </TouchableOpacity>
-
+        
         <Text style={{ fontSize: 12, color: '#777' }}>
           Tip: cambiá las URLs de retorno en ONBOARDING_RETURN_URL / ONBOARDING_REFRESH_URL (Secrets de Supabase).
         </Text>

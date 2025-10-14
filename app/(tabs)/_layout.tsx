@@ -7,6 +7,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="index"    options={{ title: 'Inicio' }} />
       <Tabs.Screen name="explore"  options={{ title: 'Explorar' }} />
       <Tabs.Screen name="bookings" options={{ title: 'Mis reservas' }} />
+      <Tabs.Screen name="pago-test"options={{href: null, title: 'Pago de prueba', headerShown: true}}
+/>
 
       {/* Ocultos (no aparecen en la tab bar) */}
       <Tabs.Screen name="(pro)"           options={{ href: null }} />

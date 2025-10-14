@@ -6,12 +6,24 @@ import { supabase } from '../../lib/supabase';
 
 function RoleBadge({ isPro }: { isPro: boolean }) {
   return (
-    <View style={{
-      alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999,
-      backgroundColor: isPro ? '#16a34a20' : '#64748b20',
-      borderWidth: 1, borderColor: isPro ? '#16a34a55' : '#64748b55',
-    }}>
-      <Text style={{ fontSize: 12, fontWeight: '700', color: isPro ? '#166534' : '#334155' }}>
+    <View
+      style={{
+        alignSelf: 'flex-start',
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+        borderRadius: 999,
+        backgroundColor: isPro ? '#16a34a20' : '#64748b20',
+        borderWidth: 1,
+        borderColor: isPro ? '#16a34a55' : '#64748b55',
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 12,
+          fontWeight: '700',
+          color: isPro ? '#166534' : '#334155',
+        }}
+      >
         {isPro ? 'Rol: Profesional' : 'Rol: Cliente'}
       </Text>
     </View>
@@ -24,7 +36,10 @@ export default function Home() {
   const [amPro, setAmPro] = useState<boolean>(false);
 
   async function refreshSessionAndRole(session = undefined as any) {
-    const userEmail = session?.user?.email ?? (await supabase.auth.getSession()).data.session?.user?.email ?? null;
+    const userEmail =
+      session?.user?.email ??
+      (await supabase.auth.getSession()).data.session?.user?.email ??
+      null;
     setEmail(userEmail ?? null);
     setAmPro(userEmail ? await isProUser() : false);
   }
@@ -37,7 +52,9 @@ export default function Home() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       refreshSessionAndRole(session);
     });
-    return () => { sub.subscription?.unsubscribe(); };
+    return () => {
+      sub.subscription?.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
@@ -65,31 +82,79 @@ export default function Home() {
 
           {amPro && (
             <Link href="/(tabs)/(pro)/pro" asChild>
-              <TouchableOpacity style={{ padding: 16, borderRadius: 12, backgroundColor: '#111', marginTop: 8 }}>
-                <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>
+              <TouchableOpacity
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  backgroundColor: '#111',
+                  marginTop: 8,
+                }}
+              >
+                <Text
+                  style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}
+                >
                   Ir al Panel Profesional
                 </Text>
               </TouchableOpacity>
             </Link>
           )}
 
-          <TouchableOpacity onPress={signOut}
-            style={{ padding: 14, borderRadius: 12, backgroundColor: '#f5f5f5' }}>
-            <Text style={{ textAlign: 'center', fontWeight: '600' }}>Cerrar sesión</Text>
+          {/* 👉 Botón visible SOLO para clientes (no-Pro) */}
+          {!amPro && (
+            <Link href="/(tabs)/pago-test" asChild>
+              <TouchableOpacity
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  backgroundColor: '#10b981',
+                }}
+              >
+                <Text
+                  style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}
+                >
+                  Ir a Pago Test (Cliente)
+                </Text>
+              </TouchableOpacity>
+            </Link>
+          )}
+
+          <TouchableOpacity
+            onPress={signOut}
+            style={{
+              padding: 14,
+              borderRadius: 12,
+              backgroundColor: '#f5f5f5',
+            }}
+          >
+            <Text style={{ textAlign: 'center', fontWeight: '600' }}>
+              Cerrar sesión
+            </Text>
           </TouchableOpacity>
         </>
       ) : (
         <>
           <Link href="/(tabs)/auth-register" asChild>
-            <TouchableOpacity style={{ padding: 16, borderRadius: 12, backgroundColor: '#111' }}>
-              <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>
+            <TouchableOpacity
+              style={{ padding: 16, borderRadius: 12, backgroundColor: '#111' }}
+            >
+              <Text
+                style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}
+              >
                 Crear cuenta
               </Text>
             </TouchableOpacity>
           </Link>
 
           <Link href="/(tabs)/auth-login" asChild>
-            <TouchableOpacity style={{ padding: 16, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd' }}>
+            <TouchableOpacity
+              style={{
+                padding: 16,
+                borderRadius: 12,
+                backgroundColor: '#fff',
+                borderWidth: 1,
+                borderColor: '#ddd',
+              }}
+            >
               <Text style={{ textAlign: 'center', fontWeight: '600' }}>
                 Iniciar sesión
               </Text>
