@@ -11,7 +11,7 @@ export async function listServices() {
 }
 
 export async function listProsForService(serviceId: string) {
-  // 1) Dueño del servicio (pro)
+  // 1) Dueño del servicio
   const { data: svc, error: e1 } = await supabase
     .from('services')
     .select('professional_id')
@@ -19,27 +19,46 @@ export async function listProsForService(serviceId: string) {
     .single();
   if (e1) throw e1;
 
-  const proId: string | undefined = svc?.professional_id;
+  const proId: string | undefined = (svc as any)?.professional_id;
   if (!proId) return [];
 
-  // 2) Pedir nombre público vía RPC (bypassea RLS y solo expone id/full_name/avatar_url)
+  // 2) Nombre/Avatar público vía RPC (puede venir vacío en algunos entornos)
   const { data: pub, error: ePub } = await supabase.rpc('get_user_public', { _id: proId });
-  if (ePub) {
-    // Si algo falla, devolvemos un alias amigable
-    return [{ id: proId, full_name: 'Profesional', avatar_url: null }];
+
+  // pub a veces viene como array
+  const row = Array.isArray(pub) ? pub?.[0] : pub;
+  let friendly: string | null = row?.full_name ?? null;
+  let avatar: string | null = row?.avatar_url ?? null;
+
+  // 3) Fallback de nombre: profiles
+  if (!friendly || friendly.trim() === '') {
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('full_name,name')
+      .eq('id', proId)
+      .maybeSingle();
+    friendly = (prof?.full_name || prof?.name || '').trim() || null;
   }
 
-  const row = Array.isArray(pub) ? pub[0] : pub; // supabase RPC puede devolver array
-  const friendly = row?.full_name || 'Profesional';
+  // 4) Fallback de avatar: professionals
+  if (!avatar) {
+    const { data: proRow } = await supabase
+      .from('professionals')
+      .select('avatar_url')
+      .eq('user_id', proId)
+      .maybeSingle();
+    avatar = proRow?.avatar_url ?? null;
+  }
 
   return [
     {
       id: proId,
-      full_name: friendly,
-      avatar_url: row?.avatar_url ?? null,
+      full_name: friendly ?? 'Profesional',
+      avatar_url: avatar,
     },
   ];
 }
+
 
 
 // --- Mis reservas (cliente o pro) con ventanas configurables ---

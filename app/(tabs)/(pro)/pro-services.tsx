@@ -1,19 +1,11 @@
 // app/(tabs)/(pro)/pro-services.tsx
-import { Link, useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  RefreshControl,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Alert, FlatList, RefreshControl, Text, View, TouchableOpacity } from 'react-native';
 import { supabase } from '../../../lib/supabase';
-const router = useRouter();
 
 type Service = {
-  id: string; // si fuese number, hacemos String(id) al navegar
+  id: string;
   name: string;
   description?: string;
   price_cents: number;
@@ -38,7 +30,6 @@ export default function ProServices() {
       setLoading(false);
       return;
     }
-    await supabase.rpc('ensure_pro_profile');
     const { data, error } = await supabase
       .from('services')
       .select('*')
@@ -76,69 +67,104 @@ export default function ProServices() {
     ]);
   };
 
-  const Row = ({ item }: { item: Service }) => (
-    <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}>
-      <Text style={{ fontSize: 16, fontWeight: '600' }}>
-        {item.name} · ${(item.price_cents / 100).toFixed(2)}
-      </Text>
-      <Text style={{ color: '#666' }}>
-        {item.duration_min} min · {item.category || '—'}
-      </Text>
+  function Row({ item }: { item: Service }) {
+    return (
+      <View
+        style={{
+          backgroundColor: '#fff',
+          borderRadius: 16,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: '#E5E7EB',
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ fontSize: 16, fontWeight: '700', color: '#0F172A' }}>
+          {item.name} · €{(item.price_cents / 100).toFixed(2)}
+        </Text>
+        <Text style={{ color: '#64748B', marginTop: 2 }}>
+          {item.duration_min} min · {item.category || '—'}
+        </Text>
 
-      <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-        {/* ✅ Navegación correcta a ruta dinámica usando pathname + params */}
-        <TouchableOpacity
-  onPress={() =>
-    router.push({
-      pathname: '/pro-service/[id]',   // 👈 carpeta dinámica
-      params: { id: String(item.id) },
-    })
-  }
-  style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 10 }}
->
-  <Text>Editar</Text>
-</TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/(pro)/pro-service/[id]',
+                params: { id: String(item.id) },
+              })
+            }
+            style={{
+              backgroundColor: '#F3F4F6',
+              paddingVertical: 12,
+              paddingHorizontal: 14,
+              borderRadius: 12,
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={{ color: '#111827', fontWeight: '600' }}>Editar</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => toggleActive(item.id, item.is_active)}
-          style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 10 }}
-        >
-          <Text>{item.is_active ? 'Desactivar' : 'Activar'}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => toggleActive(item.id, item.is_active)}
+            style={{
+              backgroundColor: '#F3F4F6',
+              paddingVertical: 12,
+              paddingHorizontal: 14,
+              borderRadius: 12,
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={{ color: '#111827', fontWeight: '600' }}>
+              {item.is_active ? 'Desactivar' : 'Activar'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => remove(item.id)}
-          style={{ padding: 8, backgroundColor: '#fde8e8', borderRadius: 10 }}
-        >
-          <Text style={{ color: '#b00020' }}>Eliminar</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => remove(item.id)}
+            style={{
+              backgroundColor: '#FDE8E8',
+              paddingVertical: 12,
+              paddingHorizontal: 14,
+              borderRadius: 12,
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={{ color: '#B00020', fontWeight: '600' }}>Eliminar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  }
 
   return (
-    <View style={{ padding: 16, flex: 1 }}>
-      {/* ➕ Nuevo servicio: path plano (sin /(tabs)) */}
-      <Link href="/pro-service-new" asChild>
-        <TouchableOpacity
-          style={{
-            padding: 12,
-            borderRadius: 12,
-            backgroundColor: '#111',
-            alignItems: 'center',
-            marginBottom: 12,
-          }}
-        >
-          <Text style={{ color: '#fff', fontWeight: '600' }}>Nuevo servicio</Text>
-        </TouchableOpacity>
-      </Link>
+    <View style={{ flex: 1, backgroundColor: '#F6F7F9', padding: 16 }}>
+      <Text style={{ fontSize: 22, fontWeight: '700', marginBottom: 12, color: '#0F172A' }}>
+        Mis servicios
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => router.push('/(tabs)/(pro)/pro-service-new')}
+        style={{
+          backgroundColor: '#111827',
+          paddingVertical: 14,
+          borderRadius: 12,
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+        activeOpacity={0.85}
+      >
+        <Text style={{ color: '#fff', fontWeight: '700' }}>Nuevo servicio</Text>
+      </TouchableOpacity>
 
       <FlatList
         data={items}
         keyExtractor={(i) => String(i.id)}
-        renderItem={Row}
+        renderItem={({ item }) => <Row item={item} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={!loading ? <Text>No hay servicios aún.</Text> : null}
+        ListEmptyComponent={
+          !loading ? <Text style={{ color: '#64748B', marginTop: 8 }}>No hay servicios aún.</Text> : null
+        }
       />
     </View>
   );
