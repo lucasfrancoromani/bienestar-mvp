@@ -31,7 +31,7 @@ export default function ExploreScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#F9FAFB' }}
+      style={{ flex: 1, backgroundColor: '#f8f6faff' }}
       contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
     >
       {/* 👋 Bienvenida */}
@@ -55,9 +55,9 @@ export default function ExploreScreen() {
               paddingHorizontal: 20,
               alignItems: 'center',
               justifyContent: 'center',
-              width: '46%',
+              width: '48%',
               borderWidth: 1,
-              borderColor: '#E5E7EB',
+              borderColor: '#f0dcffff',
             }}
             activeOpacity={0.85}
           >
@@ -92,13 +92,13 @@ export default function ExploreScreen() {
               marginRight: 12,
               width: 220,
               borderWidth: 1,
-              borderColor: '#E5E7EB',
+              borderColor: '#f0dcffff',
               overflow: 'hidden',
             }}
           >
             <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1584466977773-6e86c8c5c6d9?w=400&q=60' }}
-              style={{ width: '100%', height: 120 }}
+              source={{ uri: 'https://image.tuasaude.com/media/article/yi/yk/masajes-relajantes-con-aceites-esenciales_68365.jpg?width=686&height=487' }}
+              style={{ width: '100%', height: 150 }}
             />
             <View style={{ padding: 12 }}>
               <Text style={{ fontWeight: '700', color: '#0F172A' }}>{item.name}</Text>
