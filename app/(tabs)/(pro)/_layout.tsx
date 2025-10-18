@@ -1,11 +1,10 @@
 // app/(tabs)/(pro)/_layout.tsx
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { isProUser } from '../../../lib/authz';
+import { isProUser } from '../../../lib/authz'; // ajustá la ruta si tu archivo está en otro lado
 
 export default function ProStackLayout() {
-  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
 
@@ -14,7 +13,6 @@ export default function ProStackLayout() {
       try {
         const ok = await isProUser();
         setAllowed(ok);
-        if (!ok) router.replace('/(tabs)'); // 👈 redirige al home tabs
       } finally {
         setChecking(false);
       }
@@ -23,7 +21,7 @@ export default function ProStackLayout() {
 
   if (checking) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator />
       </View>
     );
@@ -32,15 +30,26 @@ export default function ProStackLayout() {
   if (!allowed) return null;
 
   return (
-    <Stack screenOptions={{ headerShadowVisible: false, gestureEnabled: true, fullScreenGestureEnabled: true }}>
-      <Stack.Screen name="pro"                  options={{ title: 'Panel Profesional' }} />
-      <Stack.Screen name="pro-profile"          options={{ title: 'Mi Perfil' }} />
-      <Stack.Screen name="pro-coverage"         options={{ title: 'Zonas' }} />
-      <Stack.Screen name="pro-services"         options={{ title: 'Mis servicios' }} />
-      <Stack.Screen name="pro-service-new"      options={{ title: 'Nuevo servicio' }} />
-      <Stack.Screen name="pro-service/[id]"     options={{ title: 'Editar servicio' }} />
-      <Stack.Screen name="pro-availability"     options={{ title: 'Disponibilidad' }} />
-      <Stack.Screen name="pro-bookings"         options={{ title: 'Reservas' }} />
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        headerTitle: 'Bienestar',     // MISMO título en todo (pro)
+        headerTitleAlign: 'center',
+        headerShadowVisible: false,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+        headerBackTitleVisible: false,
+      }}
+    >
+      <Stack.Screen name="pro"                 />
+      <Stack.Screen name="pro-profile"         />
+      <Stack.Screen name="pro-coverage"        />
+      <Stack.Screen name="pro-services"        />
+      <Stack.Screen name="pro-service-new"     />
+      <Stack.Screen name="pro-service/[id]"    />
+      <Stack.Screen name="pro-availability"    />
+      <Stack.Screen name="pro-bookings"        />
+      <Stack.Screen name="pro-finanzas"        />
     </Stack>
   );
 }

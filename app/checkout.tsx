@@ -1,46 +1,47 @@
-// app/(tabs)/(client)/checkout.tsx (ejemplo completo y mínimo)
+// app/(tabs)/(client)/checkout.tsx
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useStripe } from '@stripe/stripe-react-native';
-// ajustá la ruta a tu supabase client o fetch
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase'; // ajusta la ruta a tu lib real
 
 async function createPaymentIntent(bookingId: string) {
-  // llama a la Edge Function y devuelve client_secret
   const { data, error } = await supabase.functions.invoke('payments-intent', {
     body: { booking_id: bookingId },
   });
   if (error) throw new Error(error.message);
-  return data as { client_secret: string; amount: number; application_fee_cents: number };
+  return data as { client_secret: string };
 }
 
 export default function CheckoutScreen() {
   const [loading, setLoading] = useState(false);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-  // ⚠️ Traé este id desde el flujo real (reserva creada)
+  // ⚠️ reemplazá por el booking real en tu flujo
   const bookingId = '1fff294b-7020-4401-bac8-9a0ccce63f5f';
 
   const onPagar = useCallback(async () => {
     try {
       setLoading(true);
 
-      // 1) Pedimos el client_secret al backend (ya hace el split al Pro)
       const { client_secret } = await createPaymentIntent(bookingId);
 
-      // 2) Inicializamos PaymentSheet
-      const init = await initPaymentSheet({
+      // 👇 Debug defensivo: podés ver en log lo que estamos pasando
+      const options = {
         paymentIntentClientSecret: client_secret,
-        merchantDisplayName: 'Bienestar', // lo que ve el usuario
+        merchantDisplayName: 'Bienestar',
         allowsDelayedPaymentMethods: false,
-      });
+        returnURL: 'bienestar://payments/redirect', // ✅ explícito, sin Linking
+      } as const;
+
+      console.log('[initPaymentSheet] options:', options);
+
+      const init = await initPaymentSheet(options);
       if (init.error) {
         Alert.alert('Pago', init.error.message ?? 'No se pudo iniciar el pago');
         setLoading(false);
         return;
       }
 
-      // 3) Presentamos PaymentSheet
       const present = await presentPaymentSheet();
       if (present.error) {
         Alert.alert('Pago cancelado', present.error.message ?? 'El usuario canceló o falló el pago');
@@ -48,9 +49,8 @@ export default function CheckoutScreen() {
         return;
       }
 
-      // 4) Éxito
       Alert.alert('Éxito', 'Pago realizado correctamente');
-      // (Opcional) refrescar reservas o navegar
+      // TODO: refetch de reservas o navegación a "Mis reservas"
     } catch (e: any) {
       console.error(e);
       Alert.alert('Error', e?.message ?? 'No se pudo procesar el pago');
@@ -62,12 +62,24 @@ export default function CheckoutScreen() {
   return (
     <View style={{ flex: 1, padding: 16, justifyContent: 'center', gap: 16 }}>
       <Text style={{ fontSize: 22, fontWeight: '700' }}>Checkout</Text>
+
       <TouchableOpacity
         onPress={onPagar}
         disabled={loading}
-        style={{ backgroundColor: '#111827', padding: 16, borderRadius: 12, opacity: loading ? 0.7 : 1 }}
+        style={{
+          backgroundColor: '#111827',
+          padding: 16,
+          borderRadius: 12,
+          opacity: loading ? 0.7 : 1,
+        }}
       >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>Pagar</Text>}
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>
+            Pagar
+          </Text>
+        )}
       </TouchableOpacity>
     </View>
   );

@@ -72,6 +72,7 @@ export default function Home() {
   };
 
   return (
+    
     <View style={{ padding: 16, gap: 12 }}>
       <Text style={{ fontSize: 24, fontWeight: '700', marginBottom: 4 }}>Inicio</Text>
 
@@ -91,7 +92,7 @@ export default function Home() {
                 }}
               >
                 <Text
-                  style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}
+                  style={{ color: '#ddbcfbff', textAlign: 'center', fontWeight: '600' }}
                 >
                   Ir al Panel Profesional
                 </Text>
@@ -106,7 +107,7 @@ export default function Home() {
             style={{
               padding: 14,
               borderRadius: 12,
-              backgroundColor: '#f5f5f5',
+              backgroundColor: '#f9f9f9ff',
             }}
           >
             <Text style={{ textAlign: 'center', fontWeight: '600' }}>
