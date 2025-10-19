@@ -4,6 +4,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import { supabase } from '../../../lib/supabase';
 
+const PUBLISHABLE_KEY = 'pk_test_51SHbDqLMHBIjOOWfWaKUderaEYiBhy3bYSxBwanuXMYBfRrWWw82rND8YSoTF3QWiViN4532fIF9mme55nKUMLch00C9vpTY0s';
+const URL_SCHEME = 'bienestar'; // 👈 debe coincidir con expo.scheme
+const RETURN_URL = `${URL_SCHEME}://payments/redirect`;
+
 async function createPaymentIntent(bookingId: string) {
   const { data, error } = await supabase.functions.invoke('payments-intent', {
     body: { booking_id: bookingId },
@@ -24,6 +28,7 @@ function CheckoutInner() {
     try {
       if (!bookingId) throw new Error('Reserva no encontrada');
       setLoading(true);
+
       const { client_secret, amount } = await createPaymentIntent(bookingId);
       setAmountEur(amount / 100);
 
@@ -31,6 +36,7 @@ function CheckoutInner() {
         paymentIntentClientSecret: client_secret,
         merchantDisplayName: 'Bienestar',
         allowsDelayedPaymentMethods: false,
+        returnURL: RETURN_URL, // ✅ corrige el warning y habilita métodos con redirect en iOS
       });
       if (init.error) throw new Error(init.error.message ?? 'No se pudo iniciar el pago');
 
@@ -48,10 +54,6 @@ function CheckoutInner() {
       setLoading(false);
     }
   }, [bookingId, initPaymentSheet, presentPaymentSheet, router]);
-
-  useEffect(() => {
-    // opcional: podrías precargar datos de la reserva acá si querés mostrar detalles
-  }, []);
 
   return (
     <View style={{ flex: 1, padding: 16, justifyContent: 'center', gap: 16 }}>
@@ -75,9 +77,9 @@ function CheckoutInner() {
 export default function CheckoutScreen() {
   return (
     <StripeProvider
-      publishableKey="pk_test_51SHbDqLMHBIjOOWfWaKUderaEYiBhy3bYSxBwanuXMYBfRrWWw82rND8YSoTF3QWiViN4532fIF9mme55nKUMLch00C9vpTY0s"  // ← tu Publishable Key (TEST)
+      publishableKey={PUBLISHABLE_KEY}
       merchantIdentifier="com.bienestar.app"
-      urlScheme="bienestar"
+      urlScheme={URL_SCHEME} // 👈 necesario para returnURL
     >
       <CheckoutInner />
     </StripeProvider>
