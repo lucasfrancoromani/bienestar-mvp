@@ -204,7 +204,7 @@ export default function MyBookings() {
   // 🚧 Guard de ruta: si es Pro y NO forzó vista cliente, no mostramos lista de cliente
   if (amPro && !forceClientView) {
     return (
-      <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center' }}>
+      <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center', backgroundColor: '#fbf6ffff'  }}>
         <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
           Esta sección es para clientes
         </Text>

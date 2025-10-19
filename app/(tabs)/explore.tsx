@@ -31,7 +31,7 @@ export default function ExploreScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#f8f6faff' }}
+      style={{ flex: 1, backgroundColor: '#fbf6ffff' }}
       contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
     >
       {/* 👋 Bienvenida */}
@@ -87,7 +87,7 @@ export default function ExploreScreen() {
             }
             activeOpacity={0.9}
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: '#f2e7ffff',
               borderRadius: 16,
               marginRight: 12,
               width: 220,

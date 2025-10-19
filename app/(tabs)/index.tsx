@@ -73,7 +73,7 @@ export default function Home() {
 
   return (
     
-    <View style={{ padding: 16, gap: 12 }}>
+    <View style={{ padding: 20, gap: 15, flex: 1, backgroundColor: '#fbf6ffff' }}>
       <Text style={{ fontSize: 24, fontWeight: '700', marginBottom: 4 }}>Inicio</Text>
 
       {email ? (
@@ -92,7 +92,7 @@ export default function Home() {
                 }}
               >
                 <Text
-                  style={{ color: '#ddbcfbff', textAlign: 'center', fontWeight: '600' }}
+                  style={{ color: '#ffffffff', textAlign: 'center', fontWeight: '600' }}
                 >
                   Ir al Panel Profesional
                 </Text>
