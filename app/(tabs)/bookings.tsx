@@ -14,7 +14,10 @@ import { cancelBooking, listMyBookings } from '../../lib/api';
 import { displayName } from '../../lib/display';
 import { supabase } from '../../lib/supabase';
 import { isProUser } from '../../lib/authz';
+<<<<<<< HEAD
 import { colors, radii, shadow } from '../../lib/theme';
+=======
+>>>>>>> 7c719b1 (feat(bookings): UI polish con segmented (Próximas/Pasadas), cards y acciones claras)
 
 // ---- Tipos (resumen, adaptados a lo que ya venías usando) ----
 type Booking = {
@@ -361,22 +364,14 @@ export default function MyBookings() {
     router.push(`/(tabs)/checkout/${item.id}`);
   };
 
-  // 🚧 Guard de ruta: si es Pro y NO forzó vista cliente, no mostramos lista de cliente
-  if (amPro && !forceClientView) {
-    return (
-      <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center', backgroundColor: '#fbf6ffff'  }}>
-        <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
-          Esta sección es para clientes
-        </Text>
-        <Text style={{ color: '#555' }}>
-          Estás logueado como <Text style={{ fontWeight: '700' }}>Profesional</Text>. 
-          Usá el Panel Profesional para gestionar tus reservas (aceptar / rechazar).
-        </Text>
+  // Derivados por tab
+  const upcoming = useMemo(() => items.filter(isUpcoming), [items]);
+  const past = useMemo(() => items.filter((b) => !isUpcoming(b)), [items]);
 
   const data = tab === 'upcoming' ? upcoming : past;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fbf6ffff', padding: 16 }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.bg, padding: 16 }}>
       {/* Header local + Toggle rol (solo pro) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, justifyContent: 'space-between' }}>
         <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.text }}>Mis reservas</Text>
