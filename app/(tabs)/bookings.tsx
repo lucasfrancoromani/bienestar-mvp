@@ -361,9 +361,17 @@ export default function MyBookings() {
     router.push(`/(tabs)/checkout/${item.id}`);
   };
 
-  // Derivados por tab
-  const upcoming = useMemo(() => items.filter(isUpcoming), [items]);
-  const past = useMemo(() => items.filter((b) => !isUpcoming(b)), [items]);
+  // 🚧 Guard de ruta: si es Pro y NO forzó vista cliente, no mostramos lista de cliente
+  if (amPro && !forceClientView) {
+    return (
+      <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center', backgroundColor: '#fbf6ffff'  }}>
+        <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
+          Esta sección es para clientes
+        </Text>
+        <Text style={{ color: '#555' }}>
+          Estás logueado como <Text style={{ fontWeight: '700' }}>Profesional</Text>. 
+          Usá el Panel Profesional para gestionar tus reservas (aceptar / rechazar).
+        </Text>
 
   const data = tab === 'upcoming' ? upcoming : past;
 
