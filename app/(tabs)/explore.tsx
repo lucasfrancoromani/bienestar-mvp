@@ -206,7 +206,11 @@ export default function ExploreScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: '#fbf6ffff' }}
+<<<<<<< HEAD
       contentContainerStyle={{ paddingBottom: 40 }}
+=======
+      contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+>>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
     >
       {/* Encabezado / búsqueda */}
       <View style={{ padding: 16, paddingTop: 12 }}>
@@ -264,8 +268,7 @@ export default function ExploreScreen() {
           <View
             key={p.id}
             style={{
-              width: 320,
-              height: 150,
+              backgroundColor: '#f2e7ffff',
               borderRadius: 16,
               overflow: 'hidden',
               borderWidth: 1,
