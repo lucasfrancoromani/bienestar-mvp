@@ -6,35 +6,9 @@ import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
 
-type BookingRow = {
-  id: string;
-  start_at: string;
-  total_cents: number;
-  status:
-    | 'pending' | 'confirmed' | 'canceled' | 'completed' | 'paid'
-    | 'failed' | 'processing_payment' | 'rejected';
-  services?: { id: string; name: string; duration_min: number };
-  pro?: { id: string; full_name?: string | null };
-};
-
-async function fetchBooking(bookingId: string) {
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(`
-      id,
-      start_at,
-      total_cents,
-      status,
-      services:service_id ( id, name, duration_min ),
-      pro:pro_id ( id, full_name )
-    `)
-    .eq('id', bookingId)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) throw new Error('Reserva no encontrada');
-  return data as BookingRow;
-}
+const PUBLISHABLE_KEY = 'pk_test_51SHbDqLMHBIjOOWfWaKUderaEYiBhy3bYSxBwanuXMYBfRrWWw82rND8YSoTF3QWiViN4532fIF9mme55nKUMLch00C9vpTY0s';
+const URL_SCHEME = 'bienestar'; // 👈 debe coincidir con expo.scheme
+const RETURN_URL = `${URL_SCHEME}://payments/redirect`;
 
 async function createPaymentIntent(bookingId: string) {
   const { data, error } = await supabase.functions.invoke('payments-intent', {
@@ -127,36 +101,15 @@ function CheckoutInner() {
     if (!bookingId) return;
     try {
       setLoading(true);
-      const row = await fetchBooking(bookingId);
-      setBooking(row);
-    } catch (e: any) {
-      Alert.alert('No se pudo cargar', e?.message ?? 'Intenta nuevamente.');
-    } finally {
-      setLoading(false);
-    }
-  }, [bookingId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const goBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/(tabs)/bookings');
-  };
-
-  const initSheet = useCallback(async () => {
-    if (!bookingId) return;
-    try {
-      setInitializingSheet(true);
-
-      const { client_secret } = await createPaymentIntent(bookingId);
+      const { client_secret, amount } = await createPaymentIntent(bookingId);
+      setAmountEur(amount / 100);
 
       const init = await initPaymentSheet({
         paymentIntentClientSecret: client_secret,
         merchantDisplayName: 'Bienestar',
         allowsDelayedPaymentMethods: false,
-        returnURL: 'bienestar://payments/redirect',
+        returnURL: RETURN_URL, // ✅ corrige el warning y habilita métodos con redirect en iOS
       });
 
       if (init.error) {
@@ -182,7 +135,7 @@ function CheckoutInner() {
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'No se pudo procesar el pago');
     }
-  }, [presentPaymentSheet, router]);
+  }, [bookingId, initPaymentSheet, presentPaymentSheet, router]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
@@ -308,9 +261,9 @@ function CheckoutInner() {
 export default function CheckoutScreen() {
   return (
     <StripeProvider
-      publishableKey="pk_test_51SHbDqLMHBIjOOWfWaKUderaEYiBhy3bYSxBwanuXMYBfRrWWw82rND8YSoTF3QWiViN4532fIF9mme55nKUMLch00C9vpTY0s"
+      publishableKey={PUBLISHABLE_KEY}
       merchantIdentifier="com.bienestar.app"
-      urlScheme="bienestar"
+      urlScheme={URL_SCHEME} // 👈 necesario para returnURL
     >
       <CheckoutInner />
     </StripeProvider>
