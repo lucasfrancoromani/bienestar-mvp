@@ -38,6 +38,7 @@ type Booking = {
   service_id?: string;
   pro?: { id: string; full_name?: string };
   client?: { id: string; full_name?: string };
+  _has_review?: boolean; // ← flag local
 };
 
 function translateStatus(s: Booking['status']) {
@@ -68,6 +69,12 @@ function canCancel(b: Booking) {
 
 function isPast(b: Booking) {
   return new Date(b.start_at).getTime() < Date.now();
+}
+
+function canReview(b: Booking) {
+  // Mostrar botón cuando la reserva ya ocurrió y esté completada/pagada y sin review previa
+  const eligible = b.status === 'completed' || b.status === 'paid';
+  return eligible && !!isPast(b) && !b._has_review;
 }
 
 function whenParts(iso: string) {
@@ -111,11 +118,25 @@ export default function MyBookings() {
     (async () => setAmPro(await isProUser()))();
   }, []);
 
+  // marca _has_review a partir de la tabla reviews
+  const hydrateReviews = async (rows: Booking[]) => {
+    const ids = rows.map((b) => b.id);
+    if (ids.length === 0) return rows;
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('booking_id')
+      .in('booking_id', ids);
+    if (error) return rows;
+    const set = new Set((data ?? []).map((r: any) => r.booking_id));
+    return rows.map((b) => ({ ...b, _has_review: set.has(b.id) }));
+  };
+
   const load = async () => {
     try {
       setLoading(true);
       const data = await listMyBookings();
-      setItems(data as any);
+      const flagged = await hydrateReviews((data as any) ?? []);
+      setItems(flagged as any);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -150,8 +171,7 @@ export default function MyBookings() {
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-      const data = await listMyBookings();
-      setItems(data as any);
+      await load();
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -184,24 +204,44 @@ export default function MyBookings() {
     router.push({ pathname: '/slots', params: { serviceId, proId, bookingId: b.id } });
   };
 
+  const goReview = (b: Booking) => {
+    if (!canReview(b)) return;
+    router.push(`/review/${b.id}`);
+  };
+
   const filtered = useMemo(() => {
     if (filter === 'all') return items.slice().sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
     if (filter === 'past') return items.filter(isPast).sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
     return items.filter((b) => !isPast(b)).sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
   }, [items, filter]);
 
-  // Derivados por tab
-  const upcoming = useMemo(() => items.filter(isUpcoming), [items]);
-  const past = useMemo(() => items.filter((b) => !isUpcoming(b)), [items]);
+  // Guard para Pro
+  if (amPro && !forceClientView) {
+    return (
+      <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 20, fontWeight: '800', marginBottom: 8 }}>Esta sección es para clientes</Text>
+        <Text style={{ color: '#555' }}>
+          Estás logueado como <Text style={{ fontWeight: '700' }}>Profesional</Text>. Usá el Panel Profesional para gestionar tus reservas.
+        </Text>
 
   const data = tab === 'upcoming' ? upcoming : past;
 
-  return (
-    <View style={{ flex: 1, backgroundColor: '#fbf6ffff', padding: 16 }}>
-      {/* Header local + Toggle rol (solo pro) */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.text }}>Mis reservas</Text>
-        {amPro && (
+        <TouchableOpacity onPress={() => setForceClientView(true)} style={{ marginTop: 8, padding: 14, borderRadius: 12, backgroundColor: '#10b981' }}>
+          <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Ver mis reservas como cliente</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const Segmented = () => (
+    <View style={{ flexDirection: 'row', backgroundColor: '#e8eaedff', borderRadius: 12, padding: 4, gap: 4 }}>
+      {[
+        { k: 'upcoming', t: 'Próximas' },
+        { k: 'past', t: 'Pasadas' },
+        { k: 'all', t: 'Todas' },
+      ].map((opt) => {
+        const active = filter === (opt.k as FilterKey);
+        return (
           <TouchableOpacity
             key={opt.k}
             onPress={() => setFilter(opt.k as FilterKey)}
@@ -209,7 +249,7 @@ export default function MyBookings() {
               flex: 1,
               paddingVertical: 10,
               borderRadius: 10,
-              backgroundColor: active ? '#0EA5E9' : 'transparent',
+              backgroundColor: active ? '#d8b9ffff' : 'transparent',
               alignItems: 'center',
             }}
           >
@@ -229,13 +269,14 @@ export default function MyBookings() {
     const showPay = (b.status === 'pending' || b.status === 'confirmed') && !isPast(b);
     const showReschedule = !isPast(b) && canReschedule(b);
     const showCancel = !isPast(b) && canCancel(b);
+    const showReview = canReview(b);
 
     return (
       <View style={{
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: '#e8e5ebff',
         padding: 14,
         gap: 10
       }}>
@@ -256,77 +297,14 @@ export default function MyBookings() {
         </View>
 
         {/* Acciones */}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           {showPay && (
             <TouchableOpacity
               onPress={() => router.push(`/(tabs)/checkout/${b.id}`)}
-              style={{ flex: 1, backgroundColor: '#111827', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
+              style={{ flexGrow: 1, backgroundColor: '#111827', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
             >
               <Text style={{ color: '#fff', fontWeight: '800' }}>Pagar</Text>
             </TouchableOpacity>
-          )}
-          {showReschedule && (
-            <TouchableOpacity
-              onPress={() => goReschedule(b)}
-              style={{ flex: 1, backgroundColor: '#0EA5E9', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
-            >
-              <Text style={{ color: '#fff', fontWeight: '800' }}>Reprogramar</Text>
-            </TouchableOpacity>
-          )}
-          {showCancel && (
-            <TouchableOpacity
-              onPress={() => onCancel(b.id)}
-              style={{ flex: 1, backgroundColor: '#F3F4F6', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
-            >
-              <Text style={{ color: '#0F172A', fontWeight: '800' }}>Cancelar</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Mensajes aclaratorios */}
-        {(!canCancel(b)) && (b.status === 'pending' || b.status === 'confirmed') && !isPast(b) && (
-          <Text style={{ color: '#9CA3AF', marginTop: 4 }}>Cancelación no disponible por ventana.</Text>
-        )}
-        {(!canReschedule(b)) && (b.status === 'pending' || b.status === 'confirmed') && !isPast(b) && (
-          <Text style={{ color: '#9CA3AF' }}>Reprogramación no disponible por ventana.</Text>
-        )}
-      </View>
-    );
-  };
-
-  return (
-    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-      <View style={{ padding: 16, paddingBottom: 10, gap: 10 }}>
-        <Text style={{ fontSize: 22, fontWeight: '800', color: '#0F172A' }}>Mis reservas</Text>
-        <Segmented />
-      </View>
-
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <ActivityIndicator />
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(b) => b.id}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}
-          ListEmptyComponent={
-            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', padding: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#0F172A' }}>No tenés reservas</Text>
-              <Text style={{ color: '#64748B', marginTop: 6 }}>Cuando hagas una, va a aparecer acá.</Text>
-            </View>
-          }
-<<<<<<< HEAD
-          renderItem={({ item }) => (
-            <BookingCard
-              item={item}
-              amPro={amPro}
-              forceClientView={forceClientView}
-              onCancel={onCancel}
-              onReschedule={goReschedule}
-              onPay={goPay}
-            />
           )}
           {showReschedule && (
             <TouchableOpacity
@@ -391,8 +369,6 @@ export default function MyBookings() {
               <Text style={{ color: '#64748B', marginTop: 6 }}>Cuando hagas una, va a aparecer acá.</Text>
             </View>
           }
-=======
->>>>>>> b4db968 (UI: micro-animaciones (fade-in, press-scale, layout) en Explore, Pro Detail y Slots)
           renderItem={({ item }) => <Card b={item} />}
         />
       )}
