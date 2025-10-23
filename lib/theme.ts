@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 export const colors = {
   // Paleta soft wellness
   bg: '#FAFAFA',
+  bg2: '#fbf6ffff',
   bgCard: '#FFFFFF',
   text: '#0F172A',          // slate-900
   textMuted: '#64748B',     // slate-500
