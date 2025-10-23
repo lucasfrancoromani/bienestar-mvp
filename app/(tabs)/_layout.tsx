@@ -53,6 +53,14 @@ function TabIcon({
   );
 }
 
+/** === Constantes centralizadas para TabBar flotante === */
+const BAR_HEIGHT = 64;              // alto del “pill” donde están los íconos
+const BG_PADDING = 12;              // padding alrededor del pill dentro del fondo redondeado
+const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2; // alto real del bloque de TabBar (≈88)
+const OUTER_MARGIN_BOTTOM = 5;     // separación desde el borde inferior de la pantalla
+const INSETS_TWEAK = -6;            // el offset que ya usabas: Math.max(insets.bottom - 6, 0)
+// ↑ Si tu dock es más alto en algunos dispositivos, sólo subí BAR_HEIGHT o BG_PADDING.
+
 /** TabBar personalizada: SOLO muestra index, explore, bookings */
 function MyTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -60,17 +68,13 @@ function MyTabBar({ state, descriptors, navigation }: any) {
   const VISIBLE = ['index', 'explore', 'bookings']; // ← únicos tabs visibles
   const routes = state.routes.filter((r: any) => VISIBLE.includes(r.name));
 
-  const BAR_HEIGHT = 64;
-  const BG_PADDING = 12;
-  const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2;
-
   return (
     <View
       pointerEvents="box-none"
       style={[
         styles.tabAbsoluteWrap,
         {
-          bottom: 16 + Math.max(insets.bottom - 6, 0),
+          bottom: OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0),
           left: 16,
           right: 16,
           height: BG_HEIGHT,
@@ -151,6 +155,17 @@ function MyTabBar({ state, descriptors, navigation }: any) {
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
+  /** 
+   * Reserva real de espacio para que NINGUNA pantalla quede por detrás del TabBar.
+   * Calculamos la misma altura visible que ocupa el dock (BG_HEIGHT) + su separación inferior.
+   */
+  const RESERVE =
+    BG_HEIGHT + OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0);
+
+  const RESERVE_EXTRA = 8; // ← si aún tapa algo, subí este valor (p. ej. 16)
+
   return (
     <Tabs
       tabBar={(props) => <MyTabBar {...props} />}
@@ -161,6 +176,9 @@ export default function TabsLayout() {
         headerBackground: () => <HeaderGradient />,
         headerShadowVisible: false,
         tabBarShowLabel: false, // manejamos el label nosotros
+        tabBarHideOnKeyboard: true,
+        // 👇 Esta línea evita que el contenido de *todas* las pantallas se meta debajo del dock
+        sceneContainerStyle: { paddingBottom: RESERVE + RESERVE_EXTRA },
       }}
     >
       {/* === TABS visibles === */}
@@ -192,14 +210,14 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* === Rutas que NO deben aparecer en la barra === */}
-      {/* Quedan registradas para navegar por código, pero sin links públicos */}
+      {/* === Rutas que NO deben aparecer en la barra (ocultas) === */}
       <Tabs.Screen name="select-pro" options={{ href: null }} />
       <Tabs.Screen name="pago-test" options={{ href: null }} />
       <Tabs.Screen name="checkout/[bookingId]" options={{ href: null }} />
       <Tabs.Screen name="auth-login" options={{ href: null }} />
       <Tabs.Screen name="auth-register" options={{ href: null }} />
       <Tabs.Screen name="(pro)" options={{ href: null }} />
+      <Tabs.Screen name="pro-detail" options={{ href: null }} />
     </Tabs>
   );
 }
