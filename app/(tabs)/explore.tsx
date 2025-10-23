@@ -204,8 +204,8 @@ export default function ExploreScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#fbf6ffff' }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+      style={{ flex: 1, backgroundColor: '#F8FAFC' }}
+      contentContainerStyle={{ paddingBottom: 40 }}
     >
       {/* Encabezado / búsqueda */}
       <View style={{ padding: 16, paddingTop: 12 }}>
@@ -260,7 +260,8 @@ export default function ExploreScreen() {
           <View
             key={p.id}
             style={{
-              backgroundColor: '#FFFFFF',
+              width: 320,
+              height: 150,
               borderRadius: 16,
               overflow: 'hidden',
               borderWidth: 1,

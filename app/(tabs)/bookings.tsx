@@ -14,10 +14,7 @@ import { cancelBooking, listMyBookings } from '../../lib/api';
 import { displayName } from '../../lib/display';
 import { supabase } from '../../lib/supabase';
 import { isProUser } from '../../lib/authz';
-<<<<<<< HEAD
 import { colors, radii, shadow } from '../../lib/theme';
-=======
->>>>>>> 7c719b1 (feat(bookings): UI polish con segmented (Próximas/Pasadas), cards y acciones claras)
 
 // ---- Tipos (resumen, adaptados a lo que ya venías usando) ----
 type Booking = {
@@ -371,7 +368,7 @@ export default function MyBookings() {
   const data = tab === 'upcoming' ? upcoming : past;
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg, padding: 16 }}>
+    <View style={{ flex: 1, backgroundColor: '#fbf6ffff', padding: 16 }}>
       {/* Header local + Toggle rol (solo pro) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, justifyContent: 'space-between' }}>
         <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.text }}>Mis reservas</Text>
