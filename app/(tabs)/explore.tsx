@@ -4,14 +4,15 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
-  Image,
-  ScrollView,
   TextInput,
   ActivityIndicator,
+  ScrollView,
+  Image,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useFadeIn, PressableScale, animateNextLayout } from '../../lib/anim';
 
 type Service = {
   id: string;
@@ -21,8 +22,8 @@ type Service = {
   duration_min: number;
   category?: string | null;
   is_active: boolean;
-  cover_url?: string | null; // si no existe en tu schema, queda null y usamos placeholder
-  rating_avg?: number | null; // opcional, si más adelante lo calculás
+  cover_url?: string | null;
+  rating_avg?: number | null;
 };
 
 const CATEGORIES = [
@@ -35,7 +36,6 @@ const CATEGORIES = [
   'Barbería',
 ] as const;
 
-// Placeholder de imágenes por categoría
 const categoryCovers: Record<string, string> = {
   Masajes:
     'https://images.unsplash.com/photo-1587019158091-a264f4780b9b?q=80&w=1400&auto=format&fit=crop',
@@ -83,7 +83,6 @@ export default function ExploreScreen() {
   const [q, setQ] = useState('');
   const [activeCat, setActiveCat] = useState<string | null>(null);
 
-  // promos fake (podés reemplazar por una tabla "promotions" si querés)
   const promos = useMemo(
     () => [
       {
@@ -127,7 +126,6 @@ export default function ExploreScreen() {
       if (error) throw error;
       setServices((data ?? []) as Service[]);
     } catch (e) {
-      // opcional: mostrar alert
       console.warn(e);
     } finally {
       setLoading(false);
@@ -137,7 +135,9 @@ export default function ExploreScreen() {
   const filtered = useMemo(() => {
     let list = services;
     if (activeCat) {
-      list = list.filter((s) => (s.category || '').toLowerCase() === activeCat.toLowerCase());
+      list = list.filter(
+        (s) => (s.category || '').toLowerCase() === activeCat.toLowerCase()
+      );
     }
     if (q.trim()) {
       const needle = q.trim().toLowerCase();
@@ -150,14 +150,15 @@ export default function ExploreScreen() {
     return list;
   }, [services, activeCat, q]);
 
-  const ServiceCard = ({ item }: { item: Service }) => {
+  const ServiceCard = ({ item, index = 0 }: { item: Service; index?: number }) => {
+    const { opacity } = useFadeIn(240, Math.min(index * 40, 240));
     const cover =
       item.cover_url ||
       categoryCovers[item.category || ''] ||
       'https://images.unsplash.com/photo-1519822471928-687fd3f7d6df?q=80&w=1400&auto=format&fit=crop';
 
     return (
-      <TouchableOpacity
+      <PressableScale
         activeOpacity={0.9}
         onPress={() =>
           router.push({
@@ -174,8 +175,8 @@ export default function ExploreScreen() {
           width: '100%',
         }}
       >
-        <Image source={{ uri: cover }} style={{ width: '100%', height: 160 }} />
-        <View style={{ padding: 12, gap: 6 }}>
+        <Animated.Image source={{ uri: cover }} style={{ width: '100%', height: 160, opacity }} />
+        <Animated.View style={{ padding: 12, gap: 6, opacity }}>
           <Text style={{ fontWeight: '700', color: '#0F172A', fontSize: 16 }} numberOfLines={1}>
             {item.name}
           </Text>
@@ -197,8 +198,8 @@ export default function ExploreScreen() {
               <Text style={{ color: '#fff', fontWeight: '700' }}>Ver profesionales</Text>
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </Animated.View>
+      </PressableScale>
     );
   };
 
@@ -242,14 +243,17 @@ export default function ExploreScreen() {
             placeholder="Buscar servicio o tratamiento…"
             placeholderTextColor="#94A3B8"
             value={q}
-            onChangeText={setQ}
+            onChangeText={(txt) => {
+              animateNextLayout();
+              setQ(txt);
+            }}
             style={{ flex: 1, color: '#0F172A' }}
             returnKeyType="search"
           />
           {!!q && (
-            <TouchableOpacity onPress={() => setQ('')}>
+            <PressableScale onPress={() => { animateNextLayout(); setQ(''); }}>
               <Text style={{ color: '#64748B' }}>✕</Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
         </View>
       </View>
@@ -303,8 +307,8 @@ export default function ExploreScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
         style={{ marginBottom: 6 }}
       >
-        <TouchableOpacity
-          onPress={() => setActiveCat(null)}
+        <PressableScale
+          onPress={() => { animateNextLayout(); setActiveCat(null); }}
           style={{
             paddingHorizontal: 14,
             paddingVertical: 10,
@@ -317,14 +321,14 @@ export default function ExploreScreen() {
           <Text style={{ color: activeCat === null ? '#fff' : '#0F172A', fontWeight: '700' }}>
             Todo
           </Text>
-        </TouchableOpacity>
+        </PressableScale>
 
         {CATEGORIES.map((c) => {
           const active = activeCat === c;
           return (
-            <TouchableOpacity
+            <PressableScale
               key={c}
-              onPress={() => setActiveCat(active ? null : c)}
+              onPress={() => { animateNextLayout(); setActiveCat(active ? null : c); }}
               style={{
                 paddingHorizontal: 14,
                 paddingVertical: 10,
@@ -335,12 +339,12 @@ export default function ExploreScreen() {
               }}
             >
               <Text style={{ color: active ? '#fff' : '#0F172A', fontWeight: '700' }}>{c}</Text>
-            </TouchableOpacity>
+            </PressableScale>
           );
         })}
       </ScrollView>
 
-      {/* Grid/listado de servicios */}
+      {/* Listado de servicios */}
       <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
         <Text style={{ fontSize: 18, fontWeight: '700', color: '#0F172A', marginBottom: 10 }}>
           {activeCat ? activeCat : 'Servicios destacados'}
@@ -360,7 +364,7 @@ export default function ExploreScreen() {
             keyExtractor={(item) => String(item.id)}
             scrollEnabled={false}
             contentContainerStyle={{ gap: 12 }}
-            renderItem={({ item }) => <ServiceCard item={item} />}
+            renderItem={({ item, index }) => <ServiceCard item={item} index={index} />}
           />
         )}
       </View>

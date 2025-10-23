@@ -179,7 +179,7 @@ export default function ProDetailScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fbf6ffff' }}>
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
       <Stack.Screen options={{ title: 'Profesional', headerShown: true }} />
 
       {loading ? (
@@ -304,7 +304,7 @@ export default function ProDetailScreen() {
                     <PressableScale
                       onPress={() => onReserve(s)}
                       style={{
-                        backgroundColor: '#d8b9ffff',
+                        backgroundColor: '#0EA5E9',
                         paddingVertical: 12,
                         borderRadius: 12,
                         alignItems: 'center',

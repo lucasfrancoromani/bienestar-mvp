@@ -1,14 +1,43 @@
 // app/(tabs)/checkout/[bookingId].tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+// app/(tabs)/checkout/[bookingId].tsx
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
 
-const PUBLISHABLE_KEY = 'pk_test_51SHbDqLMHBIjOOWfWaKUderaEYiBhy3bYSxBwanuXMYBfRrWWw82rND8YSoTF3QWiViN4532fIF9mme55nKUMLch00C9vpTY0s';
-const URL_SCHEME = 'bienestar'; // 👈 debe coincidir con expo.scheme
-const RETURN_URL = `${URL_SCHEME}://payments/redirect`;
+type BookingRow = {
+  id: string;
+  start_at: string;
+  total_cents: number;
+  status:
+    | 'pending' | 'confirmed' | 'canceled' | 'completed' | 'paid'
+    | 'failed' | 'processing_payment' | 'rejected';
+  services?: { id: string; name: string; duration_min: number };
+  pro?: { id: string; full_name?: string | null };
+};
+
+async function fetchBooking(bookingId: string) {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(`
+      id,
+      start_at,
+      total_cents,
+      status,
+      services:service_id ( id, name, duration_min ),
+      pro:pro_id ( id, full_name )
+    `)
+    .eq('id', bookingId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error('Reserva no encontrada');
+  return data as BookingRow;
+}
 
 async function createPaymentIntent(bookingId: string) {
   const { data, error } = await supabase.functions.invoke('payments-intent', {
@@ -65,6 +94,7 @@ function SummaryCard({ b }: { b: BookingRow }) {
         <Text style={{ color: '#0F172A' }}>Subtotal</Text>
         <Text style={{ fontWeight: '700', color: '#0F172A' }}>€{euros(b.total_cents)}</Text>
       </View>
+      {/* Si más adelante querés mostrar comisión o descuento, agregalo aquí */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
         <Text style={{ fontWeight: '700', color: '#0F172A' }}>Total</Text>
         <Text style={{ fontWeight: '800', color: '#0F172A' }}>€{euros(b.total_cents)}</Text>
@@ -77,15 +107,6 @@ function CheckoutInner() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const router = useRouter();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-
-  // === Reserva para NO pisar el TabBar flotante ===
-  const insets = useSafeAreaInsets();
-  const BAR_HEIGHT = 64;           // alto del pill
-  const BG_PADDING = 12;           // padding del fondo del dock
-  const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2; // ≈ 88
-  const OUTER_MARGIN_BOTTOM = 16;  // separación del borde
-  const INSETS_TWEAK = -6;         // ajuste que usás en el layout
-  const DOCK_RESERVE = BG_HEIGHT + OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0);
 
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<1 | 2>(1);
@@ -101,16 +122,52 @@ function CheckoutInner() {
     if (!bookingId) return;
     try {
       setLoading(true);
+      const row = await fetchBooking(bookingId);
+      setBooking(row);
+    } catch (e: any) {
+      Alert.alert('No se pudo cargar', e?.message ?? 'Intenta nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  }, [bookingId]);
 
-      const { client_secret, amount } = await createPaymentIntent(bookingId);
-      setAmountEur(amount / 100);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/bookings');
+  };
+
+  const initSheet = useCallback(async () => {
+    if (!bookingId) return;
+    try {
+      setInitializingSheet(true);
+
+      const { client_secret } = await createPaymentIntent(bookingId);
 
       const init = await initPaymentSheet({
         paymentIntentClientSecret: client_secret,
         merchantDisplayName: 'Bienestar',
         allowsDelayedPaymentMethods: false,
-        returnURL: RETURN_URL, // ✅ corrige el warning y habilita métodos con redirect en iOS
+        // ✅ importante para iOS: evitar warning y soportar métodos con redirección
+        returnURL: 'bienestar://payments/redirect',
       });
+
+      if (init.error) {
+        throw new Error(init.error.message ?? 'No se pudo iniciar el pago');
+      }
+      setStep(2);
+    } catch (e: any) {
+      Alert.alert('Pago', e?.message ?? 'No se pudo iniciar el pago');
+    } finally {
+      setInitializingSheet(false);
+    }
+  }, [bookingId, initPaymentSheet]);
+
+  const pay = useCallback(async () => {
+    try {
 
       if (init.error) {
         throw new Error(init.error.message ?? 'No se pudo iniciar el pago');
@@ -131,11 +188,11 @@ function CheckoutInner() {
         return;
       }
       Alert.alert('Éxito', 'Pago realizado correctamente');
-      router.replace('/(tabs)/bookings');
+      router.replace('/(tabs)/bookings'); // webhook actualizará a "Pagada"
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'No se pudo procesar el pago');
     }
-  }, [bookingId, initPaymentSheet, presentPaymentSheet, router]);
+  }, [presentPaymentSheet, router]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
@@ -157,8 +214,8 @@ function CheckoutInner() {
         </View>
       ) : (
         <>
-          {/* 👇 Reservo cola para que el contenido jamás quede detrás del TabBar */}
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 16 + DOCK_RESERVE }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 }}>
+            {/* Paso 1 — Resumen */}
             {step === 1 && (
               <>
                 <SummaryCard b={booking} />
@@ -178,6 +235,7 @@ function CheckoutInner() {
               </>
             )}
 
+            {/* Paso 2 — Pago (la hoja de Stripe se presenta con el botón) */}
             {step === 2 && (
               <View
                 style={{
@@ -199,20 +257,18 @@ function CheckoutInner() {
             )}
           </ScrollView>
 
-          {/* CTA fijo por ENCIMA del TabBar */}
+          {/* CTA fijo inferior */}
           <View
             style={{
               position: 'absolute',
               left: 0,
               right: 0,
-              bottom: DOCK_RESERVE,
+              bottom: 0,
               borderTopWidth: 1,
               borderTopColor: '#E5E7EB',
               backgroundColor: '#FFFFFF',
               padding: 12,
               gap: 8,
-              zIndex: 50,
-              elevation: 8,
             }}
           >
             {step === 1 ? (
@@ -259,11 +315,13 @@ function CheckoutInner() {
 }
 
 export default function CheckoutScreen() {
+  // Podés mantener este StripeProvider local o confiar en el de tu root.
+  // Si preferís usar el root provider, podés exportar directamente <CheckoutInner />.
   return (
     <StripeProvider
-      publishableKey={PUBLISHABLE_KEY}
+      publishableKey="pk_test_51SHbDqLMHBIjOOWfWaKUderaEYiBhy3bYSxBwanuXMYBfRrWWw82rND8YSoTF3QWiViN4532fIF9mme55nKUMLch00C9vpTY0s"
       merchantIdentifier="com.bienestar.app"
-      urlScheme={URL_SCHEME} // 👈 necesario para returnURL
+      urlScheme="bienestar"
     >
       <CheckoutInner />
     </StripeProvider>
