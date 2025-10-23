@@ -37,6 +37,7 @@ type Booking = {
   service_id?: string;
   pro?: { id: string; full_name?: string };
   client?: { id: string; full_name?: string };
+  _has_review?: boolean; // ← flag local
 };
 
 function translateStatus(s: Booking['status']) {
@@ -67,6 +68,12 @@ function canCancel(b: Booking) {
 
 function isPast(b: Booking) {
   return new Date(b.start_at).getTime() < Date.now();
+}
+
+function canReview(b: Booking) {
+  // Mostrar botón cuando la reserva ya ocurrió y esté completada/pagada y sin review previa
+  const eligible = b.status === 'completed' || b.status === 'paid';
+  return eligible && !!isPast(b) && !b._has_review;
 }
 
 function whenParts(iso: string) {
@@ -110,11 +117,25 @@ export default function MyBookings() {
     (async () => setAmPro(await isProUser()))();
   }, []);
 
+  // marca _has_review a partir de la tabla reviews
+  const hydrateReviews = async (rows: Booking[]) => {
+    const ids = rows.map((b) => b.id);
+    if (ids.length === 0) return rows;
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('booking_id')
+      .in('booking_id', ids);
+    if (error) return rows;
+    const set = new Set((data ?? []).map((r: any) => r.booking_id));
+    return rows.map((b) => ({ ...b, _has_review: set.has(b.id) }));
+  };
+
   const load = async () => {
     try {
       setLoading(true);
       const data = await listMyBookings();
-      setItems(data as any);
+      const flagged = await hydrateReviews((data as any) ?? []);
+      setItems(flagged as any);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -149,8 +170,7 @@ export default function MyBookings() {
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-      const data = await listMyBookings();
-      setItems(data as any);
+      await load();
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -183,13 +203,18 @@ export default function MyBookings() {
     router.push({ pathname: '/slots', params: { serviceId, proId, bookingId: b.id } });
   };
 
+  const goReview = (b: Booking) => {
+    if (!canReview(b)) return;
+    router.push(`/review/${b.id}`);
+  };
+
   const filtered = useMemo(() => {
     if (filter === 'all') return items.slice().sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
     if (filter === 'past') return items.filter(isPast).sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
     return items.filter((b) => !isPast(b)).sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
   }, [items, filter]);
 
-  // Guard para Pro (igual que antes, pero con estilo más “limpio”)
+  // Guard para Pro
   if (amPro && !forceClientView) {
     return (
       <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center' }}>
@@ -210,7 +235,7 @@ export default function MyBookings() {
   }
 
   const Segmented = () => (
-    <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, gap: 4 }}>
+    <View style={{ flexDirection: 'row', backgroundColor: '#e8eaedff', borderRadius: 12, padding: 4, gap: 4 }}>
       {[
         { k: 'upcoming', t: 'Próximas' },
         { k: 'past', t: 'Pasadas' },
@@ -225,7 +250,7 @@ export default function MyBookings() {
               flex: 1,
               paddingVertical: 10,
               borderRadius: 10,
-              backgroundColor: active ? '#0EA5E9' : 'transparent',
+              backgroundColor: active ? '#d8b9ffff' : 'transparent',
               alignItems: 'center',
             }}
           >
@@ -245,13 +270,14 @@ export default function MyBookings() {
     const showPay = (b.status === 'pending' || b.status === 'confirmed') && !isPast(b);
     const showReschedule = !isPast(b) && canReschedule(b);
     const showCancel = !isPast(b) && canCancel(b);
+    const showReview = canReview(b);
 
     return (
       <View style={{
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: '#e8e5ebff',
         padding: 14,
         gap: 10
       }}>
@@ -272,11 +298,11 @@ export default function MyBookings() {
         </View>
 
         {/* Acciones */}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           {showPay && (
             <TouchableOpacity
               onPress={() => router.push(`/(tabs)/checkout/${b.id}`)}
-              style={{ flex: 1, backgroundColor: '#111827', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
+              style={{ flexGrow: 1, backgroundColor: '#111827', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
             >
               <Text style={{ color: '#fff', fontWeight: '800' }}>Pagar</Text>
             </TouchableOpacity>
@@ -284,7 +310,7 @@ export default function MyBookings() {
           {showReschedule && (
             <TouchableOpacity
               onPress={() => goReschedule(b)}
-              style={{ flex: 1, backgroundColor: '#0EA5E9', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
+              style={{ flexGrow: 1, backgroundColor: '#0EA5E9', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
             >
               <Text style={{ color: '#fff', fontWeight: '800' }}>Reprogramar</Text>
             </TouchableOpacity>
@@ -292,9 +318,17 @@ export default function MyBookings() {
           {showCancel && (
             <TouchableOpacity
               onPress={() => onCancel(b.id)}
-              style={{ flex: 1, backgroundColor: '#F3F4F6', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
+              style={{ flexGrow: 1, backgroundColor: '#F3F4F6', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' }}
             >
               <Text style={{ color: '#0F172A', fontWeight: '800' }}>Cancelar</Text>
+            </TouchableOpacity>
+          )}
+          {showReview && (
+            <TouchableOpacity
+              onPress={() => goReview(b)}
+              style={{ flexGrow: 1, backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '800' }}>Calificar</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -306,12 +340,15 @@ export default function MyBookings() {
         {(!canReschedule(b)) && (b.status === 'pending' || b.status === 'confirmed') && !isPast(b) && (
           <Text style={{ color: '#9CA3AF' }}>Reprogramación no disponible por ventana.</Text>
         )}
+        {b._has_review && (b.status === 'completed' || b.status === 'paid') && (
+          <Text style={{ color: '#16a34a', marginTop: 4 }}>¡Gracias! Ya calificaste este servicio.</Text>
+        )}
       </View>
     );
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+    <View style={{ flex: 1, backgroundColor: '#fbf6ffff' }}>
       <View style={{ padding: 16, paddingBottom: 10, gap: 10 }}>
         <Text style={{ fontSize: 22, fontWeight: '800', color: '#0F172A' }}>Mis reservas</Text>
         <Segmented />

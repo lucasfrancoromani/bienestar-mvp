@@ -107,7 +107,7 @@ export default function Home() {
             style={{
               padding: 14,
               borderRadius: 12,
-              backgroundColor: '#f9f9f9ff',
+              backgroundColor: '#e8eaedff',
             }}
           >
             <Text style={{ textAlign: 'center', fontWeight: '600' }}>

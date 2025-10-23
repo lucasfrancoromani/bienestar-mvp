@@ -90,21 +90,21 @@ export default function ExploreScreen() {
         title: '-20% esta semana',
         subtitle: 'Masajes y faciales',
         image:
-          'https://images.unsplash.com/photo-1556228720-195a672e8a03?q=80&w=1600&auto=format&fit=crop',
+          'https://escuelaelbs.com/wp-content/uploads/masaje-estetico.jpg',
       },
       {
         id: 'promo-2',
         title: 'Beauty Friday',
         subtitle: 'Uñas y pelo',
         image:
-          'https://images.unsplash.com/photo-1619983081563-430f63602796?q=80&w=1600&auto=format&fit=crop',
+          'https://cdn.euroinnova.edu.es/img/subidasEditor/peluquer%C3%ADa-1615496220.webp',
       },
       {
         id: 'promo-3',
         title: 'Destacados cerca tuyo',
         subtitle: 'Top profesionales',
         image:
-          'https://images.unsplash.com/photo-1605614191429-1ce0c16d2afe?q=80&w=1600&auto=format&fit=crop',
+          'https://www.designsystem.es/wp-content/uploads/2023/11/ultimas-tendencias-herramientas-peluqueria.jpg',
       },
     ],
     []
@@ -155,7 +155,7 @@ export default function ExploreScreen() {
     const cover =
       item.cover_url ||
       categoryCovers[item.category || ''] ||
-      'https://images.unsplash.com/photo-1519822471928-687fd3f7d6df?q=80&w=1400&auto=format&fit=crop';
+      'https://www.clinicaphysis.com/wp-content/uploads/2022/10/masaje-descontracturante-valencia.png';
 
     return (
       <PressableScale
@@ -189,7 +189,7 @@ export default function ExploreScreen() {
           <View style={{ marginTop: 8 }}>
             <View
               style={{
-                backgroundColor: '#0EA5E9',
+                backgroundColor: '#d8b9ffff',
                 paddingVertical: 10,
                 borderRadius: 12,
                 alignItems: 'center',
@@ -205,7 +205,7 @@ export default function ExploreScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#F8FAFC' }}
+      style={{ flex: 1, backgroundColor: '#fbf6ffff' }}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
       {/* Encabezado / búsqueda */}
@@ -304,9 +304,9 @@ export default function ExploreScreen() {
             paddingHorizontal: 14,
             paddingVertical: 10,
             borderRadius: 999,
-            backgroundColor: activeCat === null ? '#0EA5E9' : '#FFFFFF',
+            backgroundColor: activeCat === null ? '#d8b9ffff' : '#FFFFFF',
             borderWidth: 1,
-            borderColor: activeCat === null ? '#0EA5E9' : '#E5E7EB',
+            borderColor: activeCat === null ? '#cea8fcff' : '#E5E7EB',
           }}
         >
           <Text style={{ color: activeCat === null ? '#fff' : '#0F172A', fontWeight: '700' }}>
@@ -324,9 +324,9 @@ export default function ExploreScreen() {
                 paddingHorizontal: 14,
                 paddingVertical: 10,
                 borderRadius: 999,
-                backgroundColor: active ? '#0EA5E9' : '#FFFFFF',
+                backgroundColor: active ? '#d8b9ffff' : '#FFFFFF',
                 borderWidth: 1,
-                borderColor: active ? '#0EA5E9' : '#E5E7EB',
+                borderColor: active ? '#c99dffff' : '#E5E7EB',
               }}
             >
               <Text style={{ color: active ? '#fff' : '#0F172A', fontWeight: '700' }}>{c}</Text>
