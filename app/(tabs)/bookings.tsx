@@ -1,57 +1,85 @@
 // app/(tabs)/bookings.tsx
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Button, FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { cancelBooking, listMyBookings } from '../../lib/api';
 import { displayName } from '../../lib/display';
 import { supabase } from '../../lib/supabase';
-import { isProUser } from '../../lib/authz'; // ⛳️ nuevo: detectar rol
+import { isProUser } from '../../lib/authz';
+import { colors, radii, shadow } from '../../lib/theme';
 
+// ---- Tipos (resumen, adaptados a lo que ya venías usando) ----
 type Booking = {
   id: string;
   start_at: string;
-  status:
-    | 'pending'
-    | 'confirmed'
-    | 'canceled'
-    | 'completed'
-    | 'paid'
-    | 'failed'
-    | 'processing_payment'
-    | 'rejected';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show' | 'rejected'| 'refunded' | 'canceled';
+  service_id?: string;
   services?: {
     id: string;
     name: string;
-    duration_min: number;
-    reschedule_window_hours?: number;
-    cancel_window_hours?: number;
-  };
-  service_id?: string;
-  pro?: { id: string; full_name?: string };
-  client?: { id: string; full_name?: string };
+    reschedule_window_hours?: number | null;
+    cancel_window_hours?: number | null;
+    price_cents?: number | null;
+  } | null;
+  pro?: { id: string; name?: string | null } | null;
+  client?: { id: string; name?: string | null } | null;
+  paid_at?: string | null;
 };
 
-// Traducciones UI (no cambian la DB)
-function translateStatus(s: Booking['status']) {
-  switch (s) {
-    case 'pending': return 'Pendiente';
-    case 'confirmed': return 'Confirmada';
-    case 'canceled': return 'Cancelada';
-    case 'completed': return 'Completada';
-    case 'paid': return 'Pagada';
-    case 'failed': return 'Fallida';
-    case 'processing_payment': return 'Procesando pago';
-    case 'rejected': return 'Rechazada';
-    default: return s;
-  }
+// ---- Helpers de UI ----
+const COLORS = {
+  bg: '#ffffff',
+  card: '#ffffff',
+  text: '#111827',
+  textMuted: '#6b7280',
+  border: '#e5e7eb',
+  primary: '#0ea5e9',
+  success: '#16a34a',
+  warn: '#f59e0b',
+  danger: '#ef4444',
+  badgeBg: '#f3f4f6',
+};
+
+function normalizeStatus(s: string) {
+  const raw = (s || '').toLowerCase().trim();
+  // Alias/sinónimos → canonical
+  if (raw === 'canceled') return 'cancelled'; // unificamos en 'cancelled'
+  return raw;
 }
 
-function line(b: Booking) {
-  const when = new Date(b.start_at).toLocaleString();
-  const sname = b.services?.name || 'Servicio';
-  const proName = displayName(b.pro);
-  const cliName = displayName(b.client);
-  return `${when} • ${sname} • Pro: ${proName} • Cliente: ${cliName} • ${translateStatus(b.status)}`;
+function translateStatus(s: string) {
+  const st = normalizeStatus(s);
+  const map: Record<string, string> = {
+    pending: 'Pendiente de confirmar',
+    confirmed: 'Confirmada',
+    paid: 'Pagada',
+    processing: 'Procesando pago',
+    completed: 'Completada',
+    cancelled: 'Cancelada',
+    rejected: 'Rechazada',
+    no_show: 'Ausente',
+    refunded: 'Reembolsada',
+    failed: 'Pago fallido',
+  };
+  return map[st] ?? s;
+}
+
+function moneyEUR(cents?: number | null) {
+  const v = (cents ?? 0) / 100;
+  return `€ ${v.toFixed(2)}`;
+}
+
+function whenStr(b: Booking) {
+  const d = new Date(b.start_at);
+  return d.toLocaleString();
 }
 
 function canReschedule(b: Booking) {
@@ -70,55 +98,242 @@ function canCancel(b: Booking) {
   return start - now > hours * 3600_000;
 }
 
+function isUpcoming(b: Booking) {
+  return new Date(b.start_at).getTime() >= Date.now();
+}
+
+// ---- Badge ----
+function StatusBadge({ status }: { status: string }) {
+  const st = normalizeStatus(status);
+  const map: Record<string, { bg: string; fg: string }> = {
+    pending:    { bg: '#fff7ed', fg: '#b45309' }, // naranja
+    confirmed:  { bg: '#ecfeff', fg: '#0369a1' }, // celeste
+    paid:       { bg: '#f0fdf4', fg: '#166534' }, // verde
+    processing: { bg: '#f0fdf4', fg: '#166534' }, // verde (en curso)
+    completed:  { bg: '#f0fdf4', fg: '#166534' }, // verde
+    cancelled:  { bg: '#fef2f2', fg: '#991b1b' }, // rojo
+    rejected:   { bg: '#fef2f2', fg: '#991b1b' }, // rojo
+    failed:     { bg: '#fef2f2', fg: '#991b1b' }, // rojo
+    no_show:    { bg: '#f5f3ff', fg: '#6d28d9' }, // violeta
+    refunded:   { bg: '#f5f5f4', fg: '#44403c' }, // gris
+  };
+  const { bg, fg } = map[st] ?? { bg: '#f3f4f6', fg: '#6b7280' };
+
+  return (
+    <View
+      style={{
+        alignSelf: 'flex-start',
+        backgroundColor: bg,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+      }}
+    >
+      <Text style={{ color: fg, fontSize: 12, fontWeight: '700' }}>
+        {translateStatus(status)}
+      </Text>
+    </View>
+  );
+}
+
+// ---- Botón utilitario ----
+function Btn({
+  label,
+  onPress,
+  kind = 'primary',
+  disabled,
+}: {
+  label: string;
+  onPress?: () => void;
+  kind?: 'primary' | 'ghost' | 'danger' | 'outline';
+  disabled?: boolean;
+}) {
+  const styles: Record<string, any> = {
+    base: {
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      alignItems: 'center',
+    },
+    primary: { backgroundColor: COLORS.text, borderColor: COLORS.text },
+    danger: { backgroundColor: COLORS.danger, borderColor: COLORS.danger },
+    ghost: { backgroundColor: 'transparent', borderColor: 'transparent' },
+    outline: { backgroundColor: 'transparent', borderColor: COLORS.border },
+    text: { color: '#fff', fontWeight: '700' },
+    textGhost: { color: COLORS.text, fontWeight: '700' },
+    textOutline: { color: COLORS.text, fontWeight: '700' },
+  };
+  const bg =
+    kind === 'primary'
+      ? styles.primary
+      : kind === 'danger'
+      ? styles.danger
+      : kind === 'outline'
+      ? styles.outline
+      : styles.ghost;
+
+  const txtStyle =
+    kind === 'primary' || kind === 'danger' ? styles.text : kind === 'outline' ? styles.textOutline : styles.textGhost;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.base, bg, disabled && { opacity: 0.6 }]}
+      activeOpacity={0.8}
+    >
+      <Text style={txtStyle}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// ---- Card de reserva ----
+function BookingCard({
+  item,
+  amPro,
+  forceClientView,
+  onCancel,
+  onReschedule,
+  onPay,
+}: {
+  item: Booking;
+  amPro: boolean;
+  forceClientView: boolean;
+  onCancel: (id: string) => void;
+  onReschedule: (b: Booking) => void;
+  onPay: (b: Booking) => void;
+}) {
+  const serviceName = item.services?.name ?? 'Servicio';
+  const proName = displayName(item.pro);
+  const cliName = displayName(item.client);
+  const priceStr = moneyEUR(item.services?.price_cents);
+
+  const showClientActions = (!amPro || forceClientView) && (item.status === 'pending' || item.status === 'confirmed');
+
+  return (
+    <View
+      style={{
+        backgroundColor: COLORS.card,
+        borderRadius: 16,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        marginBottom: 12,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
+      }}
+    >
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: '700' }}>{serviceName}</Text>
+          <Text style={{ color: COLORS.textMuted, marginTop: 2 }}>{whenStr(item)}</Text>
+          <Text style={{ color: COLORS.textMuted, marginTop: 2 }}>
+            Pro: {proName} {amPro && !forceClientView ? '' : `• Cliente: ${cliName}`}
+          </Text>
+          <Text style={{ color: COLORS.text, marginTop: 6, fontWeight: '700' }}>{priceStr}</Text>
+        </View>
+        <StatusBadge status={item.status} />
+      </View>
+
+      {/* Mensajes de ventana */}
+      {showClientActions && !canReschedule(item) && (
+        <Text style={{ color: COLORS.textMuted, marginTop: 8, fontSize: 12 }}>
+          Reprogramación no disponible (ventana vencida).
+        </Text>
+      )}
+      {showClientActions && !canCancel(item) && (
+        <Text style={{ color: COLORS.textMuted, marginTop: 4, fontSize: 12 }}>
+          Cancelación no disponible (ventana vencida).
+        </Text>
+      )}
+
+      {/* Acciones */}
+      {showClientActions && (
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+          {canCancel(item) && <Btn label="Cancelar" onPress={() => onCancel(item.id)} kind="outline" />}
+          {canReschedule(item) && <Btn label="Reprogramar" onPress={() => onReschedule(item)} kind="ghost" />}
+          {/* Pagar solo si está pendiente/confirmada y aún no tiene paid_at */}
+          {!item.paid_at && <Btn label="Pagar" onPress={() => onPay(item)} kind="primary" />}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// =======================================================
+//                COMPONENTE PRINCIPAL
+// =======================================================
 export default function MyBookings() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<Booking[]>([]);
+  const [amPro, setAmPro] = useState(false);
+  const [forceClientView, setForceClientView] = useState(false);
 
-  // 🔐 Rol actual
-  const [amPro, setAmPro] = useState<boolean>(false);
-  // 👁️ Permitir que un Pro vea “como cliente” (solo en esta pantalla, sin tocar DB)
-  const [forceClientView, setForceClientView] = useState<boolean>(false);
+  // Filtro UI: Próximas / Pasadas
+  const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
 
-  // Cargar rol
-  useEffect(() => {
-    (async () => {
-      const pro = await isProUser();
-      setAmPro(!!pro);
-    })();
-  }, []);
-
-  const load = async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const data = await listMyBookings();
-      setItems(data as any);
+      const list = await listMyBookings();
+      setItems(list ?? []);
+      setAmPro(await isProUser());
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', e?.message ?? 'No se pudieron cargar las reservas');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
-  useFocusEffect(useCallback(() => { load(); }, []));
-
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      setRefreshing(true);
-      const data = await listMyBookings();
-      setItems(data as any);
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
+      const list = await listMyBookings();
+      setItems(list ?? []);
+    } catch {
+      // ignore
     } finally {
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  // 🔔 Realtime: actualizar estado en vivo (insert/update/delete)
+  useEffect(() => {
+    const ch = supabase
+      .channel('bookings-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
+        // refetch liviano
+        listMyBookings().then((list) => setItems(list ?? []));
+      })
+      .subscribe();
+
+    return () => {
+      ch.unsubscribe();
+    };
+  }, []);
+
+  // Cambio rápido de vista pro -> cliente
+  useEffect(() => {
+    (async () => setAmPro(await isProUser()))();
+  }, []);
 
   const onCancel = async (id: string) => {
-    try { await cancelBooking(id); load(); }
-    catch (e: any) {
+    try {
+      await cancelBooking(id);
+      onRefresh();
+    } catch (e: any) {
       const msg = String(e.message || '').toLowerCase();
       if (msg.includes('outside_cancel_window')) {
         Alert.alert('No disponible', 'Este turno ya no se puede cancelar por la ventana configurada.');
@@ -138,155 +353,108 @@ export default function MyBookings() {
       const hrs = item.services?.reschedule_window_hours ?? 24;
       return Alert.alert('No disponible', `Este turno ya no se puede reprogramar (ventana: ${hrs} h).`);
     }
+    // slots con bookingId para reprogramación
     router.push({ pathname: '/slots', params: { serviceId, proId, bookingId: item.id } });
   };
 
-  // 🔔 Realtime: actualizar estado en vivo
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      const uid = data.session?.user.id;
-      if (!uid || !isMounted) return;
-
-      const channel = supabase
-        .channel('bookings-status')
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'bookings' },
-          (payload) => {
-            const updated = payload.new as any;
-            setItems((prev) =>
-              prev.map((b) =>
-                b.id === updated.id
-                  ? { ...b, status: updated.status as Booking['status'] }
-                  : b
-              )
-            );
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    })();
-
-    return () => { isMounted = false; };
-  }, []);
-
-  // 🎨 Badge de estado
-  const StatusBadge = ({ status }: { status: Booking['status'] }) => {
-    const bg =
-      status === 'paid' ? '#dcfce7' :
-      status === 'failed' ? '#fee2e2' :
-      status === 'processing_payment' ? '#fef9c3' :
-      status === 'canceled' ? '#f3f4f6' :
-      status === 'rejected' ? '#ffe4e6' :
-      '#e5e7eb';
-    const fg =
-      status === 'paid' ? '#166534' :
-      status === 'failed' ? '#991b1b' :
-      status === 'processing_payment' ? '#92400e' :
-      status === 'canceled' ? '#374151' :
-      status === 'rejected' ? '#9f1239' :
-      '#374151';
-
-    return (
-      <View style={{ alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: bg }}>
-        <Text style={{ fontSize: 12, fontWeight: '700', color: fg }}>
-          {translateStatus(status)}
-        </Text>
-      </View>
-    );
+  const goPay = (item: Booking) => {
+    router.push(`/(tabs)/checkout/${item.id}`);
   };
 
-  // 🚧 Guard de ruta: si es Pro y NO forzó vista cliente, no mostramos lista de cliente
-  if (amPro && !forceClientView) {
-    return (
-      <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center' }}>
-        <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
-          Esta sección es para clientes
-        </Text>
-        <Text style={{ color: '#555' }}>
-          Estás logueado como <Text style={{ fontWeight: '700' }}>Profesional</Text>. 
-          Usá el Panel Profesional para gestionar tus reservas (aceptar / rechazar).
-        </Text>
+  // Derivados por tab
+  const upcoming = useMemo(() => items.filter(isUpcoming), [items]);
+  const past = useMemo(() => items.filter((b) => !isUpcoming(b)), [items]);
 
-        <TouchableOpacity
-          onPress={() => router.replace('/(tabs)/(pro)/pro')}
-          style={{ marginTop: 16, padding: 14, borderRadius: 12, backgroundColor: '#111' }}
-        >
-          <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>
-            Ir al Panel Profesional
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setForceClientView(true)}
-          style={{ marginTop: 8, padding: 14, borderRadius: 12, backgroundColor: '#10b981' }}
-        >
-          <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>
-            Ver mis reservas como cliente
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const data = tab === 'upcoming' ? upcoming : past;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff', padding: 16 }}>
-      <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Mis reservas</Text>
+    <View style={{ flex: 1, backgroundColor: '#fbf6ffff', padding: 16 }}>
+      {/* Header local + Toggle rol (solo pro) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, justifyContent: 'space-between' }}>
+        <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.text }}>Mis reservas</Text>
+        {amPro && (
+          <TouchableOpacity
+            onPress={() => setForceClientView((v) => !v)}
+            style={{
+              paddingVertical: 6,
+              paddingHorizontal: 12,
+              borderRadius: 999,
+              backgroundColor: forceClientView ? '#ecfeff' : '#f3f4f6',
+              borderWidth: 1,
+              borderColor: COLORS.border,
+            }}
+          >
+            <Text style={{ fontSize: 12, color: COLORS.textMuted }}>
+              Ver como {forceClientView ? 'Cliente' : 'Profesional'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
-      {loading && <ActivityIndicator />}
+      {/* Segmented control */}
+      <View
+        style={{
+          flexDirection: 'row',
+          backgroundColor: '#f3f4f6',
+          borderRadius: 12,
+          padding: 4,
+          borderWidth: 1,
+          borderColor: COLORS.border,
+          marginBottom: 12,
+        }}
+      >
+        {([
+          { key: 'upcoming', label: `Próximas (${upcoming.length})` },
+          { key: 'past', label: `Pasadas (${past.length})` },
+        ] as const).map((seg) => {
+          const active = tab === seg.key;
+          return (
+            <TouchableOpacity
+              key={seg.key}
+              onPress={() => setTab(seg.key)}
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 8,
+                alignItems: 'center',
+                backgroundColor: active ? '#ffffff' : 'transparent',
+                borderWidth: active ? 1 : 0,
+                borderColor: active ? COLORS.border : 'transparent',
+              }}
+            >
+              <Text style={{ fontWeight: active ? '700' : '500', color: active ? COLORS.text : COLORS.textMuted }}>
+                {seg.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
-      {!loading && (
+      {/* Lista */}
+      {loading ? (
+        <ActivityIndicator />
+      ) : (
         <FlatList
-          data={items}
+          data={data}
           keyExtractor={(b) => b.id}
-          ListEmptyComponent={<Text>No tenés reservas aún.</Text>}
+          contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          renderItem={({ item }) => (
-            <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee' }}>
-              <Text>{line(item)}</Text>
-
-              <StatusBadge status={item.status} />
-
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                {/* Acciones solo en modo cliente (o forzado) */}
-                {(!amPro || forceClientView) && canCancel(item) && (
-                  <View style={{ borderRadius: 8, overflow: 'hidden' }}>
-                    <Button title="Cancelar" onPress={() => onCancel(item.id)} />
-                  </View>
-                )}
-                {(!amPro || forceClientView) && canReschedule(item) && (
-                  <View style={{ borderRadius: 8, overflow: 'hidden' }}>
-                    <Button title="Reprogramar" onPress={() => goReschedule(item)} />
-                  </View>
-                )}
-                {/* Botón Pagar: solo cliente (o forzado) y solo en estados que permitan pagar */}
-                {(!amPro || forceClientView) && (item.status === 'pending' || item.status === 'confirmed') && (
-                  <View style={{ borderRadius: 8, overflow: 'hidden' }}>
-                    <Button
-                      title="Pagar"
-                      onPress={() => router.push(`/(tabs)/checkout/${item.id}`)}
-                    />
-                  </View>
-                )}
-              </View>
-
-              {/* Mensajes aclaratorios (solo modo cliente o forzado) */}
-              {(!amPro || forceClientView) && !(canCancel(item)) && (item.status === 'pending' || item.status === 'confirmed') && (
-                <Text style={{ color: '#999', marginTop: 6 }}>
-                  Cancelación no disponible por ventana.
-                </Text>
-              )}
-              {(!amPro || forceClientView) && !(canReschedule(item)) && (item.status === 'pending' || item.status === 'confirmed') && (
-                <Text style={{ color: '#999', marginTop: 2 }}>
-                  Reprogramación no disponible por ventana.
-                </Text>
-              )}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <Text style={{ color: COLORS.textMuted }}>
+                {tab === 'upcoming' ? 'No tenés reservas próximas.' : 'No tenés reservas pasadas.'}
+              </Text>
             </View>
+          }
+          renderItem={({ item }) => (
+            <BookingCard
+              item={item}
+              amPro={amPro}
+              forceClientView={forceClientView}
+              onCancel={onCancel}
+              onReschedule={goReschedule}
+              onPay={goPay}
+            />
           )}
         />
       )}

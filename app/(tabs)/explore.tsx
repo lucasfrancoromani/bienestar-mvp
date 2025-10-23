@@ -1,114 +1,360 @@
 // app/(tabs)/explore.tsx
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, ScrollView } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  TextInput,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../../lib/supabase'; // 🔧 ajustá si tu ruta real es distinta
+import { supabase } from '../../lib/supabase';
 
+type Service = {
+  id: string;
+  name: string;
+  description?: string | null;
+  price_cents: number;
+  duration_min: number;
+  category?: string | null;
+  is_active: boolean;
+  cover_url?: string | null; // si no existe en tu schema, queda null y usamos placeholder
+  rating_avg?: number | null; // opcional, si más adelante lo calculás
+};
+
+const CATEGORIES = [
+  'Masajes',
+  'Facial',
+  'Uñas',
+  'Pelo',
+  'Depilación',
+  'Makeup',
+  'Barbería',
+] as const;
+
+// Placeholder de imágenes por categoría
+const categoryCovers: Record<string, string> = {
+  Masajes:
+    'https://images.unsplash.com/photo-1587019158091-a264f4780b9b?q=80&w=1400&auto=format&fit=crop',
+  Facial:
+    'https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?q=80&w=1400&auto=format&fit=crop',
+  Uñas:
+    'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?q=80&w=1400&auto=format&fit=crop',
+  Pelo:
+    'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1400&auto=format&fit=crop',
+  Depilación:
+    'https://images.unsplash.com/photo-1622286342621-4bd786c2447a?q=80&w=1400&auto=format&fit=crop',
+  Makeup:
+    'https://images.unsplash.com/photo-1556228578-ff3045f1a1a4?q=80&w=1400&auto=format&fit=crop',
+  Barbería:
+    'https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?q=80&w=1400&auto=format&fit=crop',
+};
+
+function euros(cents: number) {
+  return (cents / 100).toFixed(2);
+}
+
+function Stars({ rating = 4.8 }: { rating?: number | null }) {
+  const r = Math.max(0, Math.min(5, Number(rating ?? 4.8)));
+  const full = Math.floor(r);
+  const half = r - full >= 0.5;
+  const empty = 5 - full - (half ? 1 : 0);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      {Array.from({ length: full }).map((_, i) => (
+        <Text key={`f-${i}`}>★</Text>
+      ))}
+      {half && <Text>☆</Text>}
+      {Array.from({ length: empty }).map((_, i) => (
+        <Text key={`e-${i}`}>✩</Text>
+      ))}
+      <Text style={{ color: '#64748B', marginLeft: 6, fontSize: 12 }}>{r.toFixed(1)}</Text>
+    </View>
+  );
+}
 
 export default function ExploreScreen() {
   const router = useRouter();
-  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState<Service[]>([]);
+  const [q, setQ] = useState('');
+  const [activeCat, setActiveCat] = useState<string | null>(null);
+
+  // promos fake (podés reemplazar por una tabla "promotions" si querés)
+  const promos = useMemo(
+    () => [
+      {
+        id: 'promo-1',
+        title: '-20% esta semana',
+        subtitle: 'Masajes y faciales',
+        image:
+          'https://images.unsplash.com/photo-1556228720-195a672e8a03?q=80&w=1600&auto=format&fit=crop',
+      },
+      {
+        id: 'promo-2',
+        title: 'Beauty Friday',
+        subtitle: 'Uñas y pelo',
+        image:
+          'https://images.unsplash.com/photo-1619983081563-430f63602796?q=80&w=1600&auto=format&fit=crop',
+      },
+      {
+        id: 'promo-3',
+        title: 'Destacados cerca tuyo',
+        subtitle: 'Top profesionales',
+        image:
+          'https://images.unsplash.com/photo-1605614191429-1ce0c16d2afe?q=80&w=1600&auto=format&fit=crop',
+      },
+    ],
+    []
+  );
 
   useEffect(() => {
     fetchServices();
   }, []);
 
   async function fetchServices() {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .eq('is_active', true)
-      .limit(10);
-    if (!error) setServices(data || []);
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+        .limit(50);
+      if (error) throw error;
+      setServices((data ?? []) as Service[]);
+    } catch (e) {
+      // opcional: mostrar alert
+      console.warn(e);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const categories = [
-    { name: 'Masajes', icon: require('../../assets/images/massage.png') },
-    { name: 'Facial',  icon: require('../../assets/images/facial.png') },
-    { name: 'Uñas',    icon: require('../../assets/images/nails.png') },
-    { name: 'Pelo',    icon: require('../../assets/images/hair.png') },
-  ];
+  const filtered = useMemo(() => {
+    let list = services;
+    if (activeCat) {
+      list = list.filter((s) => (s.category || '').toLowerCase() === activeCat.toLowerCase());
+    }
+    if (q.trim()) {
+      const needle = q.trim().toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.name.toLowerCase().includes(needle) ||
+          (s.description || '').toLowerCase().includes(needle)
+      );
+    }
+    return list;
+  }, [services, activeCat, q]);
+
+  const ServiceCard = ({ item }: { item: Service }) => {
+    const cover =
+      item.cover_url ||
+      categoryCovers[item.category || ''] ||
+      'https://images.unsplash.com/photo-1519822471928-687fd3f7d6df?q=80&w=1400&auto=format&fit=crop';
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() =>
+          router.push({
+            pathname: '/select-pro',
+            params: { serviceId: String(item.id) },
+          })
+        }
+        style={{
+          backgroundColor: '#FFFFFF',
+          borderRadius: 16,
+          borderWidth: 1,
+          borderColor: '#E5E7EB',
+          overflow: 'hidden',
+          width: '100%',
+        }}
+      >
+        <Image source={{ uri: cover }} style={{ width: '100%', height: 160 }} />
+        <View style={{ padding: 12, gap: 6 }}>
+          <Text style={{ fontWeight: '700', color: '#0F172A', fontSize: 16 }} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Stars rating={item.rating_avg ?? 4.8} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+            <Text style={{ color: '#0F172A', fontWeight: '700' }}>€{euros(item.price_cents)}</Text>
+            <Text style={{ color: '#64748B' }}>{item.duration_min} min</Text>
+          </View>
+
+          <View style={{ marginTop: 8 }}>
+            <View
+              style={{
+                backgroundColor: '#0EA5E9',
+                paddingVertical: 10,
+                borderRadius: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Ver profesionales</Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#f8f6faff' }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+      style={{ flex: 1, backgroundColor: '#F8FAFC' }}
+      contentContainerStyle={{ paddingBottom: 40 }}
     >
-      {/* 👋 Bienvenida */}
-      <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A' }}>
-        Descubrí servicios para sentirte mejor
-      </Text>
-      <Text style={{ color: '#64748B', marginTop: 4, marginBottom: 20 }}>
-        Elegí una categoría y encontrá profesionales cerca tuyo
-      </Text>
+      {/* Encabezado / búsqueda */}
+      <View style={{ padding: 16, paddingTop: 12 }}>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A' }}>
+          Encontrá tu próximo turno
+        </Text>
+        <Text style={{ color: '#64748B', marginTop: 4, marginBottom: 12 }}>
+          Belleza, masajes, estética — a domicilio o en salón
+        </Text>
 
-      {/* 🏷️ Categorías */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
-        {categories.map((cat) => (
-          <TouchableOpacity
-            key={cat.name}
-            onPress={() => router.push({ pathname: '/select-pro', params: { category: cat.name } })}
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 20,
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '48%',
-              borderWidth: 1,
-              borderColor: '#f0dcffff',
-            }}
-            activeOpacity={0.85}
-          >
-            <Image source={cat.icon} style={{ width: 40, height: 40, marginBottom: 8 }} />
-            <Text style={{ fontWeight: '600', color: '#0F172A' }}>{cat.name}</Text>
-          </TouchableOpacity>
-        ))}
+        <View
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: '#E5E7EB',
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <Text style={{ color: '#64748B' }}>🔎</Text>
+          <TextInput
+            placeholder="Buscar servicio o tratamiento…"
+            placeholderTextColor="#94A3B8"
+            value={q}
+            onChangeText={setQ}
+            style={{ flex: 1, color: '#0F172A' }}
+            returnKeyType="search"
+          />
+          {!!q && (
+            <TouchableOpacity onPress={() => setQ('')}>
+              <Text style={{ color: '#64748B' }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {/* 💅 Servicios destacados */}
-      <Text style={{ fontSize: 18, fontWeight: '700', color: '#0F172A', marginBottom: 12 }}>
-        Servicios destacados
-      </Text>
-
-      <FlatList
-        data={services}
-        keyExtractor={(item) => String(item.id)}
+      {/* Carrusel promos */}
+      <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: '/select-pro',
-                params: { serviceId: String(item.id) },
-              })
-            }
-            activeOpacity={0.9}
+        pagingEnabled
+        snapToAlignment="start"
+        decelerationRate="fast"
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+        style={{ marginBottom: 12 }}
+      >
+        {promos.map((p) => (
+          <View
+            key={p.id}
             style={{
-              backgroundColor: '#FFFFFF',
+              width: 320,
+              height: 150,
               borderRadius: 16,
-              marginRight: 12,
-              width: 220,
-              borderWidth: 1,
-              borderColor: '#f0dcffff',
               overflow: 'hidden',
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
             }}
           >
-            <Image
-              source={{ uri: 'https://image.tuasaude.com/media/article/yi/yk/masajes-relajantes-con-aceites-esenciales_68365.jpg?width=686&height=487' }}
-              style={{ width: '100%', height: 150 }}
-            />
-            <View style={{ padding: 12 }}>
-              <Text style={{ fontWeight: '700', color: '#0F172A' }}>{item.name}</Text>
-              <Text style={{ color: '#64748B', marginTop: 2 }}>
-                €{(item.price_cents / 100).toFixed(2)}
-              </Text>
+            <Image source={{ uri: p.image }} style={{ width: '100%', height: '100%' }} />
+            <View
+              style={{
+                position: 'absolute',
+                left: 12,
+                bottom: 12,
+                backgroundColor: '#00000070',
+                paddingHorizontal: 10,
+                paddingVertical: 8,
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '800' }}>{p.title}</Text>
+              <Text style={{ color: '#fff' }}>{p.subtitle}</Text>
             </View>
-          </TouchableOpacity>
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* Chips de categorías */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+        style={{ marginBottom: 6 }}
+      >
+        <TouchableOpacity
+          onPress={() => setActiveCat(null)}
+          style={{
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            borderRadius: 999,
+            backgroundColor: activeCat === null ? '#0EA5E9' : '#FFFFFF',
+            borderWidth: 1,
+            borderColor: activeCat === null ? '#0EA5E9' : '#E5E7EB',
+          }}
+        >
+          <Text style={{ color: activeCat === null ? '#fff' : '#0F172A', fontWeight: '700' }}>
+            Todo
+          </Text>
+        </TouchableOpacity>
+
+        {CATEGORIES.map((c) => {
+          const active = activeCat === c;
+          return (
+            <TouchableOpacity
+              key={c}
+              onPress={() => setActiveCat(active ? null : c)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                borderRadius: 999,
+                backgroundColor: active ? '#0EA5E9' : '#FFFFFF',
+                borderWidth: 1,
+                borderColor: active ? '#0EA5E9' : '#E5E7EB',
+              }}
+            >
+              <Text style={{ color: active ? '#fff' : '#0F172A', fontWeight: '700' }}>{c}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Grid/listado de servicios */}
+      <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: '#0F172A', marginBottom: 10 }}>
+          {activeCat ? activeCat : 'Servicios destacados'}
+        </Text>
+
+        {loading ? (
+          <View style={{ paddingVertical: 24 }}>
+            <ActivityIndicator />
+          </View>
+        ) : filtered.length === 0 ? (
+          <Text style={{ color: '#64748B', marginVertical: 12 }}>
+            No encontramos servicios para tu búsqueda.
+          </Text>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => String(item.id)}
+            scrollEnabled={false}
+            contentContainerStyle={{ gap: 12 }}
+            renderItem={({ item }) => <ServiceCard item={item} />}
+          />
         )}
-      />
+      </View>
     </ScrollView>
   );
 }
