@@ -45,30 +45,21 @@ function TabIcon({
   return (
     <View style={styles.tabIconWrap}>
       <Ionicons name={name} size={24} color={tint} />
-<<<<<<< HEAD
-      <Text style={[styles.tabLabel, focused && styles.tabLabelFocused, { color: tint }]}>{label}</Text>
-=======
       <Text style={[styles.tabLabel, focused && styles.tabLabelFocused, { color: tint }]}>
         {label}
       </Text>
->>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
     </View>
   );
 }
 
-<<<<<<< HEAD
-const BAR_HEIGHT = 64;
-const BG_PADDING = 12;
-const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2;
-const OUTER_MARGIN_BOTTOM = 5;
-const INSETS_TWEAK = -6;
+/** === Constantes centralizadas para TabBar flotante === */
+const BAR_HEIGHT = 64;              // alto del “pill” donde están los íconos
+const BG_PADDING = 12;              // padding alrededor del pill dentro del fondo redondeado
+const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2; // alto real del bloque de TabBar (≈88)
+const OUTER_MARGIN_BOTTOM = 5;     // separación desde el borde inferior de la pantalla
+const INSETS_TWEAK = -6;            // el offset que ya usabas: Math.max(insets.bottom - 6, 0)
+// ↑ Si tu dock es más alto en algunos dispositivos, sólo subí BAR_HEIGHT o BG_PADDING.
 
-function MyTabBar({ state, descriptors, navigation }: any) {
-  const insets = useSafeAreaInsets();
-  const VISIBLE = ['index', 'explore', 'bookings', 'profile'];
-  const routes = state.routes.filter((r: any) => VISIBLE.includes(r.name));
-
-=======
 /** TabBar personalizada: SOLO muestra index, explore, bookings */
 function MyTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -76,46 +67,24 @@ function MyTabBar({ state, descriptors, navigation }: any) {
   const VISIBLE = ['index', 'explore', 'bookings']; // ← únicos tabs visibles
   const routes = state.routes.filter((r: any) => VISIBLE.includes(r.name));
 
-  const BAR_HEIGHT = 64;
-  const BG_PADDING = 12;
-  const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2;
-
->>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
   return (
     <View
       pointerEvents="box-none"
       style={[
         styles.tabAbsoluteWrap,
         {
-<<<<<<< HEAD
           bottom: OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0),
-=======
-          bottom: 16 + Math.max(insets.bottom - 6, 0),
->>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
           left: 16,
           right: 16,
           height: BG_HEIGHT,
         },
       ]}
     >
-<<<<<<< HEAD
-      <View style={[styles.tabBackground]} />
-=======
       <View style={[styles.tabBackground, shadow.card]} />
->>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
       <View style={[styles.tabRow, { height: BAR_HEIGHT }]}>
         {routes.map((route: any) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === state.routes.indexOf(route);
-<<<<<<< HEAD
-
-          const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
-          };
-
-          const icon = options.tabBarIcon && options.tabBarIcon({ focused: isFocused, color: '', size: 24 });
-=======
           const label = options.tabBarLabel ?? options.title ?? route.name;
 
           const onPress = () => {
@@ -136,7 +105,6 @@ function MyTabBar({ state, descriptors, navigation }: any) {
           const icon =
             options.tabBarIcon &&
             options.tabBarIcon({ focused: isFocused, color: '', size: 24 });
->>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
 
           return (
             <TouchableOpacity
@@ -144,10 +112,7 @@ function MyTabBar({ state, descriptors, navigation }: any) {
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
               onPress={onPress}
-<<<<<<< HEAD
-=======
               onLongPress={onLongPress}
->>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
               style={styles.tabItem}
               activeOpacity={0.8}
             >
@@ -160,24 +125,6 @@ function MyTabBar({ state, descriptors, navigation }: any) {
                         ? 'calendar-outline'
                         : route.name === 'explore'
                         ? 'search-outline'
-<<<<<<< HEAD
-                        : route.name === 'profile'
-                        ? 'person-outline'
-                        : 'home-outline'
-                    }
-                    focused={isFocused}
-                    label={
-                      route.name === 'index'
-                        ? 'Inicio'
-                        : route.name === 'explore'
-                        ? 'Explorar'
-                        : route.name === 'bookings'
-                        ? 'Mis reservas'
-                        : 'Perfil'
-                    }
-                  />
-                )}
-=======
                         : 'home-outline'
                     }
                     focused={isFocused}
@@ -197,7 +144,6 @@ function MyTabBar({ state, descriptors, navigation }: any) {
                     </Text>
                   </View>
                 )}
->>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
               </View>
             </TouchableOpacity>
           );
@@ -209,8 +155,15 @@ function MyTabBar({ state, descriptors, navigation }: any) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const RESERVE = BG_HEIGHT + OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0);
-  const RESERVE_EXTRA = 8;
+
+  /** 
+   * Reserva real de espacio para que NINGUNA pantalla quede por detrás del TabBar.
+   * Calculamos la misma altura visible que ocupa el dock (BG_HEIGHT) + su separación inferior.
+   */
+  const RESERVE =
+    BG_HEIGHT + OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0);
+
+  const RESERVE_EXTRA = 8; // ← si aún tapa algo, subí este valor (p. ej. 16)
 
   return (
     <Tabs
@@ -236,6 +189,9 @@ export default function TabsLayout() {
       {/* Rutas ocultas que SÍ están bajo (tabs) */}
 =======
         tabBarShowLabel: false, // manejamos el label nosotros
+        tabBarHideOnKeyboard: true,
+        // 👇 Esta línea evita que el contenido de *todas* las pantallas se meta debajo del dock
+        sceneContainerStyle: { paddingBottom: RESERVE + RESERVE_EXTRA },
       }}
     >
       {/* === TABS visibles === */}
@@ -267,9 +223,7 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* === Rutas que NO deben aparecer en la barra === */}
-      {/* Quedan registradas para navegar por código, pero sin links públicos */}
->>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
+      {/* === Rutas que NO deben aparecer en la barra (ocultas) === */}
       <Tabs.Screen name="select-pro" options={{ href: null }} />
       <Tabs.Screen name="pago-test" options={{ href: null }} />
       <Tabs.Screen name="checkout/[bookingId]" options={{ href: null }} />
@@ -277,8 +231,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="auth-register" options={{ href: null }} />
       <Tabs.Screen name="(pro)" options={{ href: null }} />
       <Tabs.Screen name="pro-detail" options={{ href: null }} />
-
-      {/* IMPORTANTE: NO registrar aquí review/[bookingId] porque vive FUERA de (tabs) */}
     </Tabs>
   );
 }

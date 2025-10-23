@@ -94,7 +94,6 @@ function SummaryCard({ b }: { b: BookingRow }) {
         <Text style={{ color: '#0F172A' }}>Subtotal</Text>
         <Text style={{ fontWeight: '700', color: '#0F172A' }}>€{euros(b.total_cents)}</Text>
       </View>
-      {/* Si más adelante querés mostrar comisión o descuento, agregalo aquí */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
         <Text style={{ fontWeight: '700', color: '#0F172A' }}>Total</Text>
         <Text style={{ fontWeight: '800', color: '#0F172A' }}>€{euros(b.total_cents)}</Text>
@@ -107,6 +106,15 @@ function CheckoutInner() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const router = useRouter();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+
+  // === Reserva para NO pisar el TabBar flotante ===
+  const insets = useSafeAreaInsets();
+  const BAR_HEIGHT = 64;           // alto del pill
+  const BG_PADDING = 12;           // padding del fondo del dock
+  const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2; // ≈ 88
+  const OUTER_MARGIN_BOTTOM = 16;  // separación del borde
+  const INSETS_TWEAK = -6;         // ajuste que usás en el layout
+  const DOCK_RESERVE = BG_HEIGHT + OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0);
 
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<1 | 2>(1);
@@ -151,7 +159,6 @@ function CheckoutInner() {
         paymentIntentClientSecret: client_secret,
         merchantDisplayName: 'Bienestar',
         allowsDelayedPaymentMethods: false,
-        // ✅ importante para iOS: evitar warning y soportar métodos con redirección
         returnURL: 'bienestar://payments/redirect',
       });
 
@@ -188,7 +195,7 @@ function CheckoutInner() {
         return;
       }
       Alert.alert('Éxito', 'Pago realizado correctamente');
-      router.replace('/(tabs)/bookings'); // webhook actualizará a "Pagada"
+      router.replace('/(tabs)/bookings');
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'No se pudo procesar el pago');
     }
@@ -214,8 +221,8 @@ function CheckoutInner() {
         </View>
       ) : (
         <>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 }}>
-            {/* Paso 1 — Resumen */}
+          {/* 👇 Reservo cola para que el contenido jamás quede detrás del TabBar */}
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 16 + DOCK_RESERVE }}>
             {step === 1 && (
               <>
                 <SummaryCard b={booking} />
@@ -235,7 +242,6 @@ function CheckoutInner() {
               </>
             )}
 
-            {/* Paso 2 — Pago (la hoja de Stripe se presenta con el botón) */}
             {step === 2 && (
               <View
                 style={{
@@ -257,18 +263,20 @@ function CheckoutInner() {
             )}
           </ScrollView>
 
-          {/* CTA fijo inferior */}
+          {/* CTA fijo por ENCIMA del TabBar */}
           <View
             style={{
               position: 'absolute',
               left: 0,
               right: 0,
-              bottom: 0,
+              bottom: DOCK_RESERVE,
               borderTopWidth: 1,
               borderTopColor: '#E5E7EB',
               backgroundColor: '#FFFFFF',
               padding: 12,
               gap: 8,
+              zIndex: 50,
+              elevation: 8,
             }}
           >
             {step === 1 ? (
@@ -315,8 +323,6 @@ function CheckoutInner() {
 }
 
 export default function CheckoutScreen() {
-  // Podés mantener este StripeProvider local o confiar en el de tu root.
-  // Si preferís usar el root provider, podés exportar directamente <CheckoutInner />.
   return (
     <StripeProvider
       publishableKey="pk_test_51SHbDqLMHBIjOOWfWaKUderaEYiBhy3bYSxBwanuXMYBfRrWWw82rND8YSoTF3QWiViN4532fIF9mme55nKUMLch00C9vpTY0s"
