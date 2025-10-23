@@ -4,15 +4,14 @@ import {
   View,
   Text,
   FlatList,
+  TouchableOpacity,
+  Image,
+  ScrollView,
   TextInput,
   ActivityIndicator,
-  ScrollView,
-  Image,
-  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import { useFadeIn, PressableScale, animateNextLayout } from '../../lib/anim';
 
 type Service = {
   id: string;
@@ -22,8 +21,8 @@ type Service = {
   duration_min: number;
   category?: string | null;
   is_active: boolean;
-  cover_url?: string | null;
-  rating_avg?: number | null;
+  cover_url?: string | null; // si no existe en tu schema, queda null y usamos placeholder
+  rating_avg?: number | null; // opcional, si más adelante lo calculás
 };
 
 const CATEGORIES = [
@@ -36,6 +35,7 @@ const CATEGORIES = [
   'Barbería',
 ] as const;
 
+// Placeholder de imágenes por categoría
 const categoryCovers: Record<string, string> = {
   Masajes:
     'https://images.unsplash.com/photo-1587019158091-a264f4780b9b?q=80&w=1400&auto=format&fit=crop',
@@ -83,6 +83,7 @@ export default function ExploreScreen() {
   const [q, setQ] = useState('');
   const [activeCat, setActiveCat] = useState<string | null>(null);
 
+  // promos fake (podés reemplazar por una tabla "promotions" si querés)
   const promos = useMemo(
     () => [
       {
@@ -90,21 +91,21 @@ export default function ExploreScreen() {
         title: '-20% esta semana',
         subtitle: 'Masajes y faciales',
         image:
-          'https://escuelaelbs.com/wp-content/uploads/masaje-estetico.jpg',
+          'https://images.unsplash.com/photo-1556228720-195a672e8a03?q=80&w=1600&auto=format&fit=crop',
       },
       {
         id: 'promo-2',
         title: 'Beauty Friday',
         subtitle: 'Uñas y pelo',
         image:
-          'https://cdn.euroinnova.edu.es/img/subidasEditor/peluquer%C3%ADa-1615496220.webp',
+          'https://images.unsplash.com/photo-1619983081563-430f63602796?q=80&w=1600&auto=format&fit=crop',
       },
       {
         id: 'promo-3',
         title: 'Destacados cerca tuyo',
         subtitle: 'Top profesionales',
         image:
-          'https://www.designsystem.es/wp-content/uploads/2023/11/ultimas-tendencias-herramientas-peluqueria.jpg',
+          'https://images.unsplash.com/photo-1605614191429-1ce0c16d2afe?q=80&w=1600&auto=format&fit=crop',
       },
     ],
     []
@@ -126,6 +127,7 @@ export default function ExploreScreen() {
       if (error) throw error;
       setServices((data ?? []) as Service[]);
     } catch (e) {
+      // opcional: mostrar alert
       console.warn(e);
     } finally {
       setLoading(false);
@@ -135,9 +137,7 @@ export default function ExploreScreen() {
   const filtered = useMemo(() => {
     let list = services;
     if (activeCat) {
-      list = list.filter(
-        (s) => (s.category || '').toLowerCase() === activeCat.toLowerCase()
-      );
+      list = list.filter((s) => (s.category || '').toLowerCase() === activeCat.toLowerCase());
     }
     if (q.trim()) {
       const needle = q.trim().toLowerCase();
@@ -150,15 +150,14 @@ export default function ExploreScreen() {
     return list;
   }, [services, activeCat, q]);
 
-  const ServiceCard = ({ item, index = 0 }: { item: Service; index?: number }) => {
-    const { opacity } = useFadeIn(240, Math.min(index * 40, 240));
+  const ServiceCard = ({ item }: { item: Service }) => {
     const cover =
       item.cover_url ||
       categoryCovers[item.category || ''] ||
-      'https://www.clinicaphysis.com/wp-content/uploads/2022/10/masaje-descontracturante-valencia.png';
+      'https://images.unsplash.com/photo-1519822471928-687fd3f7d6df?q=80&w=1400&auto=format&fit=crop';
 
     return (
-      <PressableScale
+      <TouchableOpacity
         activeOpacity={0.9}
         onPress={() =>
           router.push({
@@ -175,8 +174,8 @@ export default function ExploreScreen() {
           width: '100%',
         }}
       >
-        <Animated.Image source={{ uri: cover }} style={{ width: '100%', height: 160, opacity }} />
-        <Animated.View style={{ padding: 12, gap: 6, opacity }}>
+        <Image source={{ uri: cover }} style={{ width: '100%', height: 160 }} />
+        <View style={{ padding: 12, gap: 6 }}>
           <Text style={{ fontWeight: '700', color: '#0F172A', fontSize: 16 }} numberOfLines={1}>
             {item.name}
           </Text>
@@ -189,7 +188,7 @@ export default function ExploreScreen() {
           <View style={{ marginTop: 8 }}>
             <View
               style={{
-                backgroundColor: '#d8b9ffff',
+                backgroundColor: '#0EA5E9',
                 paddingVertical: 10,
                 borderRadius: 12,
                 alignItems: 'center',
@@ -198,20 +197,24 @@ export default function ExploreScreen() {
               <Text style={{ color: '#fff', fontWeight: '700' }}>Ver profesionales</Text>
             </View>
           </View>
-        </Animated.View>
-      </PressableScale>
+        </View>
+      </TouchableOpacity>
     );
   };
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#fbf6ffff' }}
-<<<<<<< HEAD
+      style={{ flex: 1, backgroundColor: '#F8FAFC' }}
       contentContainerStyle={{ paddingBottom: 40 }}
-=======
-      contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
->>>>>>> d0b1399 (feat(tabs): TabBar personalizada centrada + fondo flotante con pill activo)
     >
+      {/* Encabezado / búsqueda */}
+      <View style={{ padding: 16, paddingTop: 12 }}>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A' }}>
+          Encontrá tu próximo turno
+        </Text>
+        <Text style={{ color: '#64748B', marginTop: 4, marginBottom: 12 }}>
+          Belleza, masajes, estética — a domicilio o en salón
+        </Text>
       {/* Encabezado / búsqueda */}
       <View style={{ padding: 16, paddingTop: 12 }}>
         <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A' }}>
@@ -239,20 +242,18 @@ export default function ExploreScreen() {
             placeholder="Buscar servicio o tratamiento…"
             placeholderTextColor="#94A3B8"
             value={q}
-            onChangeText={(txt) => {
-              animateNextLayout();
-              setQ(txt);
-            }}
+            onChangeText={setQ}
             style={{ flex: 1, color: '#0F172A' }}
             returnKeyType="search"
           />
           {!!q && (
-            <PressableScale onPress={() => { animateNextLayout(); setQ(''); }}>
+            <TouchableOpacity onPress={() => setQ('')}>
               <Text style={{ color: '#64748B' }}>✕</Text>
-            </PressableScale>
+            </TouchableOpacity>
           )}
         </View>
       </View>
+
 
       {/* Carrusel promos */}
       <ScrollView
@@ -268,7 +269,8 @@ export default function ExploreScreen() {
           <View
             key={p.id}
             style={{
-              backgroundColor: '#f2e7ffff',
+              width: 320,
+              height: 150,
               borderRadius: 16,
               overflow: 'hidden',
               borderWidth: 1,
@@ -301,44 +303,44 @@ export default function ExploreScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
         style={{ marginBottom: 6 }}
       >
-        <PressableScale
-          onPress={() => { animateNextLayout(); setActiveCat(null); }}
+        <TouchableOpacity
+          onPress={() => setActiveCat(null)}
           style={{
             paddingHorizontal: 14,
             paddingVertical: 10,
             borderRadius: 999,
-            backgroundColor: activeCat === null ? '#d8b9ffff' : '#FFFFFF',
+            backgroundColor: activeCat === null ? '#0EA5E9' : '#FFFFFF',
             borderWidth: 1,
-            borderColor: activeCat === null ? '#cea8fcff' : '#E5E7EB',
+            borderColor: activeCat === null ? '#0EA5E9' : '#E5E7EB',
           }}
         >
           <Text style={{ color: activeCat === null ? '#fff' : '#0F172A', fontWeight: '700' }}>
             Todo
           </Text>
-        </PressableScale>
+        </TouchableOpacity>
 
         {CATEGORIES.map((c) => {
           const active = activeCat === c;
           return (
-            <PressableScale
+            <TouchableOpacity
               key={c}
-              onPress={() => { animateNextLayout(); setActiveCat(active ? null : c); }}
+              onPress={() => setActiveCat(active ? null : c)}
               style={{
                 paddingHorizontal: 14,
                 paddingVertical: 10,
                 borderRadius: 999,
-                backgroundColor: active ? '#d8b9ffff' : '#FFFFFF',
+                backgroundColor: active ? '#0EA5E9' : '#FFFFFF',
                 borderWidth: 1,
-                borderColor: active ? '#c99dffff' : '#E5E7EB',
+                borderColor: active ? '#0EA5E9' : '#E5E7EB',
               }}
             >
               <Text style={{ color: active ? '#fff' : '#0F172A', fontWeight: '700' }}>{c}</Text>
-            </PressableScale>
+            </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {/* Listado de servicios */}
+      {/* Grid/listado de servicios */}
       <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
         <Text style={{ fontSize: 18, fontWeight: '700', color: '#0F172A', marginBottom: 10 }}>
           {activeCat ? activeCat : 'Servicios destacados'}
@@ -358,7 +360,7 @@ export default function ExploreScreen() {
             keyExtractor={(item) => String(item.id)}
             scrollEnabled={false}
             contentContainerStyle={{ gap: 12 }}
-            renderItem={({ item, index }) => <ServiceCard item={item} index={index} />}
+            renderItem={({ item }) => <ServiceCard item={item} />}
           />
         )}
       </View>
