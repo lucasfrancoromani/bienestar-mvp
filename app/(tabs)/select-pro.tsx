@@ -53,9 +53,9 @@ export default function SelectPro() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <Link
-              href={{ pathname: '/slots', params: { serviceId: String(serviceId), proId: item.id } }}
-              asChild
-            >
+  href={{ pathname: '/(tabs)/pro-detail', params: { serviceId: String(serviceId), proId: item.id } }}
+   asChild
+ >
               <TouchableOpacity style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Image
                   source={
