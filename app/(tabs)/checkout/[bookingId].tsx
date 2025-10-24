@@ -1,9 +1,13 @@
 // app/(tabs)/checkout/[bookingId].tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
-// app/(tabs)/checkout/[bookingId].tsx
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,8 +18,14 @@ type BookingRow = {
   start_at: string;
   total_cents: number;
   status:
-    | 'pending' | 'confirmed' | 'canceled' | 'completed' | 'paid'
-    | 'failed' | 'processing_payment' | 'rejected';
+    | 'pending'
+    | 'confirmed'
+    | 'canceled'
+    | 'completed'
+    | 'paid'
+    | 'failed'
+    | 'processing_payment'
+    | 'rejected';
   services?: { id: string; name: string; duration_min: number };
   pro?: { id: string; full_name?: string | null };
 };
@@ -53,7 +63,10 @@ function euros(cents: number) {
 
 function StepIndicator({ step }: { step: 1 | 2 }) {
   const base = {
-    height: 6, borderRadius: 999, backgroundColor: '#E5E7EB', overflow: 'hidden',
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: '#E5E7EB',
+    overflow: 'hidden',
   } as const;
   const fillWidth = step === 1 ? '50%' : '100%';
   return (
@@ -65,8 +78,15 @@ function StepIndicator({ step }: { step: 1 | 2 }) {
 
 function SummaryCard({ b }: { b: BookingRow }) {
   const when = new Date(b.start_at);
-  const fecha = when.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' });
-  const hora = when.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const fecha = when.toLocaleDateString(undefined, {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  });
+  const hora = when.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
   return (
     <View
       style={{
@@ -107,14 +127,14 @@ function CheckoutInner() {
   const router = useRouter();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-  // === Reserva para NO pisar el TabBar flotante ===
   const insets = useSafeAreaInsets();
-  const BAR_HEIGHT = 64;           // alto del pill
-  const BG_PADDING = 12;           // padding del fondo del dock
-  const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2; // ≈ 88
-  const OUTER_MARGIN_BOTTOM = 16;  // separación del borde
-  const INSETS_TWEAK = -6;         // ajuste que usás en el layout
-  const DOCK_RESERVE = BG_HEIGHT + OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0);
+  const BAR_HEIGHT = 64;
+  const BG_PADDING = 12;
+  const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2;
+  const OUTER_MARGIN_BOTTOM = 16;
+  const INSETS_TWEAK = -6;
+  const DOCK_RESERVE =
+    BG_HEIGHT + OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0);
 
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<1 | 2>(1);
@@ -123,7 +143,11 @@ function CheckoutInner() {
 
   const canPay = useMemo(() => {
     if (!booking) return false;
-    return booking.status === 'pending' || booking.status === 'confirmed' || booking.status === 'processing_payment';
+    return (
+      booking.status === 'pending' ||
+      booking.status === 'confirmed' ||
+      booking.status === 'processing_payment'
+    );
   }, [booking]);
 
   const load = useCallback(async () => {
@@ -162,23 +186,7 @@ function CheckoutInner() {
         returnURL: 'bienestar://payments/redirect',
       });
 
-      if (init.error) {
-        throw new Error(init.error.message ?? 'No se pudo iniciar el pago');
-      }
-      setStep(2);
-    } catch (e: any) {
-      Alert.alert('Pago', e?.message ?? 'No se pudo iniciar el pago');
-    } finally {
-      setInitializingSheet(false);
-    }
-  }, [bookingId, initPaymentSheet]);
-
-  const pay = useCallback(async () => {
-    try {
-
-      if (init.error) {
-        throw new Error(init.error.message ?? 'No se pudo iniciar el pago');
-      }
+      if (init.error) throw new Error(init.error.message ?? 'No se pudo iniciar el pago');
       setStep(2);
     } catch (e: any) {
       Alert.alert('Pago', e?.message ?? 'No se pudo iniciar el pago');
@@ -215,14 +223,28 @@ function CheckoutInner() {
       ) : !booking ? (
         <View style={{ padding: 16, gap: 12 }}>
           <Text style={{ color: '#64748B' }}>No encontramos la reserva.</Text>
-          <TouchableOpacity onPress={goBack} style={{ backgroundColor: '#111', padding: 14, borderRadius: 12, alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={goBack}
+            style={{
+              backgroundColor: '#111',
+              padding: 14,
+              borderRadius: 12,
+              alignItems: 'center',
+            }}
+          >
             <Text style={{ color: '#fff', fontWeight: '700' }}>Volver</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <>
-          {/* 👇 Reservo cola para que el contenido jamás quede detrás del TabBar */}
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 16 + DOCK_RESERVE }}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              padding: 16,
+              gap: 16,
+              paddingBottom: 16 + DOCK_RESERVE,
+            }}
+          >
             {step === 1 && (
               <>
                 <SummaryCard b={booking} />
@@ -236,7 +258,8 @@ function CheckoutInner() {
                   }}
                 >
                   <Text style={{ color: '#1E3A8A', fontWeight: '600' }}>
-                    Pagás ahora y asegurás tu horario. Si el profesional cancela, te devolvemos el 100%.
+                    Pagás ahora y asegurás tu horario. Si el profesional cancela, te devolvemos el
+                    100%.
                   </Text>
                 </View>
               </>
@@ -263,7 +286,7 @@ function CheckoutInner() {
             )}
           </ScrollView>
 
-          {/* CTA fijo por ENCIMA del TabBar */}
+          {/* CTA fijo por encima del TabBar */}
           <View
             style={{
               position: 'absolute',
@@ -284,7 +307,8 @@ function CheckoutInner() {
                 disabled={!canPay || initializingSheet}
                 onPress={initSheet}
                 style={{
-                  backgroundColor: !canPay || initializingSheet ? '#93C5FD' : '#0EA5E9',
+                  backgroundColor:
+                    !canPay || initializingSheet ? '#93C5FD' : '#0EA5E9',
                   paddingVertical: 14,
                   borderRadius: 12,
                   alignItems: 'center',
@@ -312,7 +336,10 @@ function CheckoutInner() {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity onPress={goBack} style={{ paddingVertical: 10, alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={goBack}
+              style={{ paddingVertical: 10, alignItems: 'center' }}
+            >
               <Text style={{ color: '#64748B', fontWeight: '600' }}>Volver</Text>
             </TouchableOpacity>
           </View>
