@@ -33,7 +33,7 @@ export default function SelectPro() {
   const renderName = (p: Pro) => (p.full_name || p.name || p.id);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <View style={{ flex: 1, backgroundColor: '#fbf6ffff' }}>
       {/* Hereda header de Tabs (logo + degradado). Si igual querés title, dejamos este: */}
       <Stack.Screen options={{ title: 'Elegir profesional', headerShown: true }} />
 
@@ -53,9 +53,9 @@ export default function SelectPro() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <Link
-              href={{ pathname: '/slots', params: { serviceId: String(serviceId), proId: item.id } }}
-              asChild
-            >
+  href={{ pathname: '/(tabs)/pro-detail', params: { serviceId: String(serviceId), proId: item.id } }}
+   asChild
+ >
               <TouchableOpacity style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Image
                   source={
@@ -65,7 +65,7 @@ export default function SelectPro() {
                   }
                   style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6' }}
                 />
-                <Text style={{ fontWeight: '600', color: '#0F172A' }}>{renderName(item)}</Text>
+                <Text style={{ fontWeight: '700', color: '#0F172A' }}>{renderName(item)}</Text>
               </TouchableOpacity>
             </Link>
           )}
