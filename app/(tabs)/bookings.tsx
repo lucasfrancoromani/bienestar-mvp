@@ -217,21 +217,38 @@ export default function MyBookings() {
 
   // Guard para Pro
   if (amPro && !forceClientView) {
-    return (
-      <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center' }}>
-        <Text style={{ fontSize: 20, fontWeight: '800', marginBottom: 8 }}>Esta sección es para clientes</Text>
-        <Text style={{ color: '#555' }}>
-          Estás logueado como <Text style={{ fontWeight: '700' }}>Profesional</Text>. Usá el Panel Profesional para gestionar tus reservas.
+  return (
+    <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center' }}>
+      <Text style={{ fontSize: 20, fontWeight: '800', marginBottom: 8 }}>
+        Esta sección es para clientes
+      </Text>
+
+      <Text style={{ color: '#555' }}>
+        Estás logueado como <Text style={{ fontWeight: '700' }}>Profesional</Text>. Usá el Panel Profesional para gestionar tus reservas.
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => setForceClientView(true)}
+        style={{
+          marginTop: 8,
+          padding: 14,
+          borderRadius: 12,
+          backgroundColor: '#10b981',
+        }}
+      >
+        <Text
+          style={{
+            color: '#fff',
+            textAlign: 'center',
+            fontWeight: '700',
+          }}
+        >
+          Ver mis reservas como cliente
         </Text>
-
-  const data = tab === 'upcoming' ? upcoming : past;
-
-        <TouchableOpacity onPress={() => setForceClientView(true)} style={{ marginTop: 8, padding: 14, borderRadius: 12, backgroundColor: '#10b981' }}>
-          <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Ver mis reservas como cliente</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+      </TouchableOpacity>
+    </View>
+  );
+}
 
   const Segmented = () => (
     <View style={{ flexDirection: 'row', backgroundColor: '#e8eaedff', borderRadius: 12, padding: 4, gap: 4 }}>

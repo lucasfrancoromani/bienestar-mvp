@@ -1,6 +1,6 @@
 // app/slots.tsx
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -9,27 +9,17 @@ import {
   View,
   RefreshControl,
   TouchableOpacity,
+  Animated, // 👈 agregado
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  ScrollView,
-  Text,
-  View,
-  RefreshControl,
-  Animated,
-} from 'react-native';
 import { createBooking, listSlots, rescheduleBooking } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { PressableScale, animateNextLayout, useFadeIn } from '../lib/anim';
 
 type Slot = { slot_start: string; slot_end: string };
 
-// --- Localización (español + 24h) ---
-const LOCALE = 'es-ES';      // si preferís italiano: 'it-IT'
+// --- Localización ---
+const LOCALE = 'es-ES';
 const TZ = 'Europe/Rome';
 
 function fmtDayKey(d: Date) {
@@ -58,39 +48,24 @@ function humanTime(iso: string) {
     hour12: false,
     timeZone: TZ,
   }).format(d);
-function fmtDayKey(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
-}
-
-function humanDay(d: Date) {
-  return d.toLocaleDateString(undefined, {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-  });
-}
-
-function humanTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
 export default function SlotsScreen() {
-  const { serviceId, proId, bookingId } = useLocalSearchParams<{ serviceId: string; proId: string; bookingId?: string }>();
+  const { serviceId, proId, bookingId } = useLocalSearchParams<{
+    serviceId: string;
+    proId: string;
+    bookingId?: string;
+  }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // === Reserva para NO pisar el TabBar flotante ===
-  const BAR_HEIGHT = 10;           // alto del pill
-  const BG_PADDING = 5;           // padding del fondo del dock
-  const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2; // ≈ 88
-  const OUTER_MARGIN_BOTTOM = 16;  // separación del borde
-  const INSETS_TWEAK = -6;         // ajuste que usás en el layout
-  const DOCK_RESERVE = BG_HEIGHT + OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0);
-
+  const BAR_HEIGHT = 64;
+  const BG_PADDING = 12;
+  const BG_HEIGHT = BAR_HEIGHT + BG_PADDING * 2;
+  const OUTER_MARGIN_BOTTOM = 16;
+  const INSETS_TWEAK = -6;
+  const DOCK_RESERVE =
+    BG_HEIGHT + OUTER_MARGIN_BOTTOM + Math.max(insets.bottom + INSETS_TWEAK, 0);
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -98,7 +73,7 @@ export default function SlotsScreen() {
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
 
-  // Rango: hoy → +21 días
+  // rango de fechas
   const range = useMemo(() => {
     const from = new Date();
     from.setSeconds(0, 0);
@@ -108,24 +83,9 @@ export default function SlotsScreen() {
   }, []);
 
   const load = useCallback(async () => {
-  const [refreshing, setRefreshing] = useState(false);
-  const [allSlots, setAllSlots] = useState<Slot[]>([]);
-  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-
-  const range = useMemo(() => {
-    const from = new Date();
-    from.setSeconds(0, 0);
-    const to = new Date(from);
-    to.setDate(to.getDate() + 21);
-    return { fromISO: from.toISOString(), toISO: to.toISOString() };
-  }, []);
-
-  const load = useCallback(async () => {
+    if (!proId || !serviceId) return;
     try {
       setLoading(true);
-      setSelectedSlot(null);
-
       setSelectedSlot(null);
 
       const data: Slot[] = await (listSlots as any)(
@@ -133,40 +93,24 @@ export default function SlotsScreen() {
         String(serviceId),
         range.fromISO,
         range.toISO
-        range.fromISO,
-        range.toISO
       );
 
       const now = Date.now();
-      const fresh = (data || []).filter((s) => new Date(s.slot_start).getTime() > now);
+      const fresh = (data || []).filter(
+        (s) => new Date(s.slot_start).getTime() > now
+      );
 
       setAllSlots(fresh);
-
       const first = fresh[0];
-      setSelectedDayKey(first ? fmtDayKey(new Date(first.slot_start)) : null);
-      const now = Date.now();
-      const fresh = (data || []).filter((s) => new Date(s.slot_start).getTime() > now);
-
-      setAllSlots(fresh);
-
-      const first = fresh[0];
-      if (first) {
-        const dk = fmtDayKey(new Date(first.slot_start));
-        setSelectedDayKey(dk);
-      } else {
-        setSelectedDayKey(null);
-      }
+      if (first) setSelectedDayKey(fmtDayKey(new Date(first.slot_start)));
+      else setSelectedDayKey(null);
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudieron cargar los horarios.');
-      setAllSlots([]);
-      setSelectedDayKey(null);
-      Alert.alert('Error', e.message ?? 'No se pudieron cargar los horarios.');
+      Alert.alert('Error', e?.message ?? 'No se pudieron cargar los horarios.');
       setAllSlots([]);
       setSelectedDayKey(null);
     } finally {
       setLoading(false);
     }
-  }, [proId, serviceId, range.fromISO, range.toISO]);
   }, [proId, serviceId, range.fromISO, range.toISO]);
 
   useEffect(() => {
@@ -179,7 +123,6 @@ export default function SlotsScreen() {
     setRefreshing(false);
   };
 
-  // Agrupar por día
   const slotsByDay = useMemo(() => {
     const map: Record<string, Slot[]> = {};
     for (const s of allSlots) {
@@ -187,20 +130,24 @@ export default function SlotsScreen() {
       (map[k] ||= []).push(s);
     }
     for (const k of Object.keys(map)) {
-      map[k].sort((a, b) => new Date(a.slot_start).getTime() - new Date(b.slot_start).getTime());
+      map[k].sort(
+        (a, b) =>
+          new Date(a.slot_start).getTime() - new Date(b.slot_start).getTime()
+      );
     }
     return map;
   }, [allSlots]);
 
-  // Días con disponibilidad
   const daysList = useMemo(() => {
     const days: { key: string; date: Date; count: number }[] = [];
     if (!allSlots.length) return days;
-
     const start = new Date(range.fromISO);
     const end = new Date(range.toISO);
-
-    for (let d = new Date(start); d.getTime() <= end.getTime(); d.setDate(d.getDate() + 1)) {
+    for (
+      let d = new Date(start);
+      d.getTime() <= end.getTime();
+      d.setDate(d.getDate() + 1)
+    ) {
       const key = fmtDayKey(d);
       const count = slotsByDay[key]?.length ?? 0;
       if (count > 0) days.push({ key, date: new Date(d), count });
@@ -213,7 +160,6 @@ export default function SlotsScreen() {
     return slotsByDay[selectedDayKey] ?? [];
   }, [selectedDayKey, slotsByDay]);
 
-  // Agrupar por franja
   const groups = useMemo(() => {
     const g = { morning: [] as Slot[], afternoon: [] as Slot[], evening: [] as Slot[] };
     for (const s of timesForSelectedDay) {
@@ -227,75 +173,28 @@ export default function SlotsScreen() {
 
   const confirm = async () => {
     try {
-      if (!selectedSlot) return Alert.alert('Elegí un horario', 'Seleccioná una hora disponible.');
-      const startISO = selectedSlot.slot_start;
-
-  }, [load]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
-
-  const slotsByDay = useMemo(() => {
-    const map: Record<string, Slot[]> = {};
-    for (const s of allSlots) {
-      const k = fmtDayKey(new Date(s.slot_start));
-      if (!map[k]) map[k] = [];
-      map[k].push(s);
-    }
-    for (const k of Object.keys(map)) {
-      map[k].sort(
-        (a, b) => new Date(a.slot_start).getTime() - new Date(b.slot_start).getTime()
-      );
-    }
-    return map;
-  }, [allSlots]);
-
-  const daysList = useMemo(() => {
-    const days: { key: string; date: Date; count: number }[] = [];
-    if (!allSlots.length) return days;
-
-    const start = new Date(range.fromISO);
-    const end = new Date(range.toISO);
-
-    for (let d = new Date(start); d.getTime() <= end.getTime(); d.setDate(d.getDate() + 1)) {
-      const key = fmtDayKey(d);
-      const count = slotsByDay[key]?.length ?? 0;
-      days.push({ key, date: new Date(d), count });
-    }
-    return days.filter((d) => d.count > 0);
-  }, [allSlots, range.fromISO, range.toISO, slotsByDay]);
-
-  const timesForSelectedDay = useMemo(() => {
-    if (!selectedDayKey) return [];
-    return slotsByDay[selectedDayKey] ?? [];
-  }, [selectedDayKey, slotsByDay]);
-
-  const confirm = async () => {
-    try {
-      if (!selectedSlot) {
+      if (!selectedSlot)
         return Alert.alert('Elegí un horario', 'Seleccioná una hora disponible.');
-      }
       const startISO = selectedSlot.slot_start;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return Alert.alert('Necesitás iniciar sesión', 'Iniciá sesión para continuar.');
-      if (!user) {
-        Alert.alert('Necesitás iniciar sesión', 'Iniciá sesión para continuar.');
-        return;
-      }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user)
+        return Alert.alert(
+          'Necesitás iniciar sesión',
+          'Iniciá sesión para continuar.'
+        );
 
       if (bookingId) {
         await rescheduleBooking(String(bookingId), startISO);
         Alert.alert('¡Listo!', 'Reserva reprogramada.');
-        if (router.canGoBack()) router.back(); else router.replace('/(tabs)/bookings');
+        if (router.canGoBack()) router.back();
+        else router.replace('/(tabs)/bookings');
       } else {
         const id = await createBooking(String(proId), String(serviceId), startISO);
         Alert.alert('¡Reserva creada!', `ID: ${id}`);
-        await load();
-        await load();
+        router.replace('/(tabs)/bookings');
       }
     } catch (e: any) {
       Alert.alert('No se pudo confirmar', e?.message ?? 'Intentá nuevamente.');
@@ -305,8 +204,9 @@ export default function SlotsScreen() {
   const DayChip = ({ d }: { d: { key: string; date: Date } }) => {
     const active = selectedDayKey === d.key;
     return (
-      <TouchableOpacity
+      <PressableScale
         onPress={() => {
+          animateNextLayout();
           setSelectedDayKey(d.key);
           setSelectedSlot(null);
         }}
@@ -320,17 +220,17 @@ export default function SlotsScreen() {
           marginRight: 8,
         }}
       >
-        <Text style={{ color: active ? '#fff' : '#0F172A', fontWeight: '700' }}>
+        <Text style={{ color: active ? '#fff' : '#0F172A', fontWeight: '700', textTransform: 'capitalize' }}>
           {humanDay(d.date)}
         </Text>
-      </TouchableOpacity>
+      </PressableScale>
     );
   };
 
   const TimeChip = ({ s }: { s: Slot }) => {
     const isSelected = selectedSlot?.slot_start === s.slot_start;
     return (
-      <TouchableOpacity
+      <PressableScale
         onPress={() => setSelectedSlot(isSelected ? null : s)}
         style={{
           paddingHorizontal: 14,
@@ -346,33 +246,30 @@ export default function SlotsScreen() {
         <Text style={{ fontWeight: '700', color: isSelected ? '#075985' : '#0F172A' }}>
           {humanTime(s.slot_start)}
         </Text>
-      </TouchableOpacity>
+      </PressableScale>
     );
   };
 
+  // ✅ Arreglo: usar Animated.View
   const GroupBlock = ({ title, data }: { title: string; data: Slot[] }) => {
     if (!data.length) return null;
+    const fade = useFadeIn(220, 40);
     return (
-      <View style={{ marginBottom: 14 }}>
+      <Animated.View style={{ marginBottom: 14, opacity: fade.opacity }}>
         <Text style={{ color: '#0F172A', fontWeight: '700', marginBottom: 8 }}>{title}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {data.map((s) => <TimeChip key={s.slot_start} s={s} />)}
+          {data.map((s) => (
+            <TimeChip key={s.slot_start} s={s} />
+          ))}
         </View>
-      </View>
+      </Animated.View>
     );
-      const msg = String(e?.message ?? '');
-      Alert.alert('No se pudo confirmar', msg || 'Intentá nuevamente.');
-    }
   };
-
-  const fade = useFadeIn(220, 40);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
       <Stack.Screen
         options={{
-          title: bookingId ? 'Reprogramar' : 'Elegí un horario',
           title: bookingId ? 'Reprogramar' : 'Elegí un horario',
           headerShown: true,
         }}
@@ -401,38 +298,20 @@ export default function SlotsScreen() {
             <Text style={{ color: '#64748B' }}>
               No hay horarios disponibles en las próximas semanas.
             </Text>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Encabezado */}
-        <View style={{ padding: 16, paddingBottom: 8 }}>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A' }}>
-            {bookingId ? 'Seleccioná un nuevo horario' : 'Seleccioná fecha y hora'}
-          </Text>
-          <Text style={{ color: '#64748B', marginTop: 4 }}>
-            Mostrando próximos 21 días disponibles
-          </Text>
-        </View>
-
-        {loading ? (
-          <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-            <ActivityIndicator />
           </View>
         ) : (
           <>
-            {/* Días */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
               style={{ marginBottom: 8 }}
             >
-              {daysList.map((d) => <DayChip key={d.key} d={d} />)}
+              {daysList.map((d) => (
+                <DayChip key={d.key} d={d} />
+              ))}
             </ScrollView>
 
-            {/* Horarios por franja */}
             <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
               {timesForSelectedDay.length === 0 ? (
                 <Text style={{ color: '#64748B' }}>No hay horarios para este día.</Text>
@@ -448,7 +327,6 @@ export default function SlotsScreen() {
         )}
       </ScrollView>
 
-      {/* CTA por ENCIMA del TabBar */}
       <View
         style={{
           position: 'absolute',
@@ -478,143 +356,13 @@ export default function SlotsScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace('/(tabs)')
+          }
           style={{ paddingVertical: 12, alignItems: 'center' }}
         >
           <Text style={{ color: '#64748B', fontWeight: '600' }}>Volver</Text>
         </TouchableOpacity>
-      </View>
-        ) : !allSlots.length ? (
-          <View style={{ paddingHorizontal: 16, paddingVertical: 24 }}>
-            <Text style={{ color: '#64748B' }}>
-              No hay horarios disponibles en las próximas semanas.
-            </Text>
-          </View>
-        ) : (
-          <>
-            {/* Chips de días */}
-            <Animated.ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-              style={{ marginBottom: 8, opacity: fade.opacity }}
-            >
-              {daysList.map((d) => {
-                const active = selectedDayKey === d.key;
-                return (
-                  <PressableScale
-                    key={d.key}
-                    onPress={() => {
-                      animateNextLayout();
-                      setSelectedDayKey(d.key);
-                      setSelectedSlot(null);
-                    }}
-                    style={{
-                      paddingHorizontal: 14,
-                      paddingVertical: 10,
-                      borderRadius: 999,
-                      backgroundColor: active ? '#0EA5E9' : '#FFFFFF',
-                      borderWidth: 1,
-                      borderColor: active ? '#0EA5E9' : '#E5E7EB',
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: active ? '#fff' : '#0F172A',
-                        fontWeight: '700',
-                        textTransform: 'capitalize',
-                      }}
-                    >
-                      {humanDay(d.date)}
-                    </Text>
-                  </PressableScale>
-                );
-              })}
-            </Animated.ScrollView>
-
-            {/* Grid de horas */}
-            <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
-              {timesForSelectedDay.length === 0 ? (
-                <Text style={{ color: '#64748B' }}>No hay horarios para este día.</Text>
-              ) : (
-                <FlatList
-                  data={timesForSelectedDay}
-                  keyExtractor={(s) => s.slot_start}
-                  numColumns={2}
-                  scrollEnabled={false}
-                  columnWrapperStyle={{ gap: 10 }}
-                  contentContainerStyle={{ gap: 10 }}
-                  renderItem={({ item }) => {
-                    const isSelected = selectedSlot?.slot_start === item.slot_start;
-                    return (
-                      <PressableScale
-                        onPress={() =>
-                          setSelectedSlot(
-                            isSelected ? null : { slot_start: item.slot_start, slot_end: item.slot_end }
-                          )
-                        }
-                        style={{
-                          flex: 1,
-                          paddingVertical: 14,
-                          borderRadius: 12,
-                          borderWidth: 1,
-                          borderColor: isSelected ? '#0284C7' : '#E5E7EB',
-                          backgroundColor: isSelected ? '#E0F2FE' : '#FFFFFF',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontWeight: '700',
-                            color: isSelected ? '#075985' : '#0F172A',
-                          }}
-                        >
-                          {humanTime(item.slot_start)}
-                        </Text>
-                      </PressableScale>
-                    );
-                  }}
-                />
-              )}
-            </View>
-          </>
-        )}
-      </ScrollView>
-
-      {/* CTA fijo */}
-      <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          backgroundColor: '#FFFFFF',
-          padding: 12,
-        }}
-      >
-        <PressableScale
-          disabled={!selectedSlot}
-          onPress={confirm}
-          style={{
-            backgroundColor: selectedSlot ? '#0EA5E9' : '#93C5FD',
-            paddingVertical: 14,
-            borderRadius: 12,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: '#fff', fontWeight: '800' }}>
-            {bookingId ? 'Confirmar reprogramación' : 'Confirmar reserva'}
-          </Text>
-        </PressableScale>
-        <PressableScale
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
-          style={{ paddingVertical: 12, alignItems: 'center' }}
-        >
-          <Text style={{ color: '#64748B', fontWeight: '600' }}>Volver</Text>
-        </PressableScale>
       </View>
     </View>
   );
