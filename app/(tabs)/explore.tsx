@@ -216,6 +216,14 @@ export default function ExploreScreen() {
         <Text style={{ color: '#64748B', marginTop: 4, marginBottom: 12 }}>
           Belleza, masajes, estética — a domicilio o en salón
         </Text>
+      {/* Encabezado / búsqueda */}
+      <View style={{ padding: 16, paddingTop: 12 }}>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A' }}>
+          Encontrá tu próximo turno
+        </Text>
+        <Text style={{ color: '#64748B', marginTop: 4, marginBottom: 12 }}>
+          Belleza, masajes, estética — a domicilio o en salón
+        </Text>
 
         <View
           style={{
@@ -249,6 +257,7 @@ export default function ExploreScreen() {
           )}
         </View>
       </View>
+
 
       {/* Carrusel promos */}
       <ScrollView

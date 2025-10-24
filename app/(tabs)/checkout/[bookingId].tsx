@@ -1,6 +1,9 @@
 // app/(tabs)/checkout/[bookingId].tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+// app/(tabs)/checkout/[bookingId].tsx
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -158,6 +161,20 @@ function CheckoutInner() {
         allowsDelayedPaymentMethods: false,
         returnURL: 'bienestar://payments/redirect',
       });
+
+      if (init.error) {
+        throw new Error(init.error.message ?? 'No se pudo iniciar el pago');
+      }
+      setStep(2);
+    } catch (e: any) {
+      Alert.alert('Pago', e?.message ?? 'No se pudo iniciar el pago');
+    } finally {
+      setInitializingSheet(false);
+    }
+  }, [bookingId, initPaymentSheet]);
+
+  const pay = useCallback(async () => {
+    try {
 
       if (init.error) {
         throw new Error(init.error.message ?? 'No se pudo iniciar el pago');

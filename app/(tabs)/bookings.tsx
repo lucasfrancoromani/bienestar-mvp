@@ -14,6 +14,7 @@ import { cancelBooking, listMyBookings } from '../../lib/api';
 import { displayName } from '../../lib/display';
 import { supabase } from '../../lib/supabase';
 import { isProUser } from '../../lib/authz';
+import { colors, radii, shadow } from '../../lib/theme';
 
 type Booking = {
   id: string;
@@ -223,9 +224,7 @@ export default function MyBookings() {
           Estás logueado como <Text style={{ fontWeight: '700' }}>Profesional</Text>. Usá el Panel Profesional para gestionar tus reservas.
         </Text>
 
-        <TouchableOpacity onPress={() => router.replace('/(tabs)/(pro)/pro')} style={{ marginTop: 16, padding: 14, borderRadius: 12, backgroundColor: '#111' }}>
-          <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Ir al Panel Profesional</Text>
-        </TouchableOpacity>
+  const data = tab === 'upcoming' ? upcoming : past;
 
         <TouchableOpacity onPress={() => setForceClientView(true)} style={{ marginTop: 8, padding: 14, borderRadius: 12, backgroundColor: '#10b981' }}>
           <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Ver mis reservas como cliente</Text>
